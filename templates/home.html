@@ -27,7 +27,7 @@
 <h4 class="mt-4 mb-3 text-muted fw-normal border-bottom pb-1">Día a día</h4>
 <div class="row g-4">
     <div class="col-md-4">
-        <div class="card shadow-sm h-100">
+        <div class="card shadow-sm h-100" data-tour>
             <div class="card-body">
                 <h5 class="card-title">🛒 Nueva venta</h5>
                 <p class="card-text">Escaneá los productos con el lector de código de barras, asociá recetas y confirmá la venta. El stock se descuenta automáticamente.</p>
@@ -41,7 +41,7 @@
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card shadow-sm h-100">
+        <div class="card shadow-sm h-100" data-tour>
             <div class="card-body">
                 <h5 class="card-title">📦 Ingreso de mercadería</h5>
                 <p class="card-text">Escaneá un producto existente para sumarle stock rápidamente.</p>
@@ -52,7 +52,7 @@
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card shadow-sm h-100">
+        <div class="card shadow-sm h-100" data-tour>
             <div class="card-body">
                 <h5 class="card-title">🕶️ Productos</h5>
                 <p class="card-text">{% if es_admin %}Alta, edición y baja de armazones, cristales, lentes de contacto y accesorios.{% else %}Consultar stock y precios.{% endif %}</p>
@@ -64,7 +64,7 @@
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card shadow-sm h-100">
+        <div class="card shadow-sm h-100" data-tour>
             <div class="card-body">
                 <h5 class="card-title">👤 Clientes</h5>
                 <p class="card-text">Ficha de clientes y su historial de recetas.</p>
@@ -78,7 +78,7 @@
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card shadow-sm h-100">
+        <div class="card shadow-sm h-100" data-tour>
             <div class="card-body">
                 <h5 class="card-title">👁️ Lentes de contacto</h5>
                 <p class="card-text">Agendá pruebas de lentes de contacto en un calendario y marcá cuáles se hicieron (y cuánto dejaron).</p>
@@ -95,7 +95,7 @@
 <h4 class="mt-5 mb-3 text-muted fw-normal border-bottom pb-1">Administración</h4>
 <div class="row g-4">
     <div class="col-md-4">
-        <div class="card shadow-sm h-100">
+        <div class="card shadow-sm h-100" data-tour>
             <div class="card-body">
                 <h5 class="card-title">💰 Hacer la caja</h5>
                 <p class="card-text">Suma el dinero que ingresó en el día, discriminado por forma de pago (efectivo, tarjeta, transferencia, QR) y el total.</p>
@@ -106,7 +106,7 @@
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card shadow-sm h-100">
+        <div class="card shadow-sm h-100" data-tour>
             <div class="card-body">
                 <h5 class="card-title">📊 Estadísticas</h5>
                 <p class="card-text">Ventas por vendedor/a, productos y marcas más vendidos, y accesos al historial de movimientos.</p>
@@ -117,7 +117,7 @@
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card shadow-sm h-100">
+        <div class="card shadow-sm h-100" data-tour>
             <div class="card-body">
                 <h5 class="card-title">↩️ Devoluciones</h5>
                 <p class="card-text">Historial de devoluciones registradas.</p>
@@ -129,7 +129,7 @@
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card shadow-sm h-100">
+        <div class="card shadow-sm h-100" data-tour>
             <div class="card-body">
                 <h5 class="card-title">🏷️ Promociones y financiación</h5>
                 <p class="card-text">Descuentos por producto, marca o categoría, y promos de cuotas de bancos.</p>
@@ -141,7 +141,7 @@
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card shadow-sm h-100">
+        <div class="card shadow-sm h-100" data-tour>
             <div class="card-body">
                 <h5 class="card-title">⚙️ Marcas, categorías, obras sociales y vendedores</h5>
                 <p class="card-text">Configuración de marcas, categorías de producto, obras sociales, proveedores y el listado de empleados que atienden ventas.</p>
@@ -194,5 +194,26 @@
     document.getElementById('modal-precio').addEventListener('hidden.bs.modal', () => codigoInput.focus());
     window.addEventListener('load', () => codigoInput.focus());
 })();
+
+// Tour guiado: recorre cada tarjeta de esta página (que ya listan todas las
+// funcionalidades) usando su propio título y descripción, sin duplicar texto.
+if (new URLSearchParams(location.search).get('tour')) {
+    const steps = [...document.querySelectorAll('[data-tour]')].map((el) => ({
+        element: el,
+        popover: {
+            title: el.querySelector('.card-title').textContent.trim(),
+            description: el.querySelector('.card-text').textContent.trim(),
+        },
+    }));
+    if (steps.length) {
+        window.driver.js.driver({
+            showProgress: true,
+            nextBtnText: 'Siguiente',
+            prevBtnText: 'Atrás',
+            doneBtnText: 'Listo',
+            steps,
+        }).drive();
+    }
+}
 </script>
 {% endblock %}
