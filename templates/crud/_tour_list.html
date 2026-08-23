@@ -1,0 +1,18 @@
+<script>
+// Tour genérico para toda pantalla de listado (crud/list.html): busca cada
+// elemento clave por su id, y solo lo agrega al recorrido si existe en esta
+// página en particular (search/creación/paginación son opcionales).
+(function () {
+    const candidatos = [
+        ['#tour-buscar', 'Buscar', 'Filtrá la lista escribiendo acá y presionando "Buscar".'],
+        ['#tour-nuevo', '+ Nuevo', 'Da de alta un registro nuevo.'],
+        ['#tour-tabla', 'Listado', 'Encabezados subrayados (▲▼) ordenan la tabla al hacer click. Las acciones de cada fila están a la derecha.'],
+        ['.pagination', 'Paginación', 'Si hay muchos registros, se navegan de a páginas desde acá.'],
+    ];
+    window.tourSteps = (window.tourSteps || []).concat(
+        candidatos
+            .filter(([selector]) => document.querySelector(selector))
+            .map(([selector, title, description]) => ({ element: selector, popover: { title, description } }))
+    );
+})();
+</script>

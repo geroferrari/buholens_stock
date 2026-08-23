@@ -11,7 +11,7 @@
 {% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
 {% endif %}
 
-<div class="d-flex justify-content-between align-items-center mb-2 mt-4">
+<div class="d-flex justify-content-between align-items-center mb-2 mt-4" id="tour-promociones">
     <h5 class="mb-0">🏷️ Promociones <span class="text-muted small">— descuentos al cliente sobre el precio de venta</span></h5>
     <a href="{% url 'inventory:promocion_nueva' %}" class="btn btn-primary btn-sm">+ Nueva promoción</a>
 </div>
@@ -42,7 +42,7 @@
     </div>
 </div>
 
-<div class="d-flex justify-content-between align-items-center mb-2">
+<div class="d-flex justify-content-between align-items-center mb-2" id="tour-financiacion">
     <h5 class="mb-0">💳 Financiación <span class="text-muted small">— costo de las promos de cuotas que absorbe el comercio</span></h5>
     <a href="{% url 'inventory:plan_financiacion_nuevo' %}" class="btn btn-primary btn-sm">+ Nuevo plan</a>
 </div>
@@ -74,5 +74,12 @@
         </table>
     </div>
 </div>
+
+<script>
+window.tourSteps = [
+    { element: '#tour-promociones', popover: { title: 'Promociones', description: 'Descuentos al cliente (% o monto fijo), con vigencia por fechas, por producto/marca/categoría. Se aplican solas en el punto de venta.' } },
+    { element: '#tour-financiacion', popover: { title: 'Financiación', description: 'Planes de cuotas por banco, con su costo financiero. También se aplican solos al elegir la forma de pago en la venta.' } },
+];
+</script>
 
 {% endblock %}

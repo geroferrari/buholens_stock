@@ -5,4 +5,10 @@
 
 {% url 'sales:devolucion_registrar' as post_url %}
 {% include "partials/scanner_widget.html" with post_url=post_url boton_label="Registrar" incluir_motivo=True %}
+
+<script>
+window.tourSteps = [
+    { element: '#tour-scanner', popover: { title: 'Registrar devolución', description: 'Escaneá el producto devuelto, ajustá la cantidad y anotá el motivo si querés. Se reingresa al stock automáticamente.' } },
+];
+</script>
 {% endblock %}

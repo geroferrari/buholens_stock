@@ -8,7 +8,7 @@
     <h3 class="mb-0">🗑️ Papelera</h3>
     <a href="{% url 'home' %}" class="btn btn-outline-secondary btn-sm">← Volver</a>
 </div>
-<p class="text-muted">Lo que borrás queda acá y se puede recuperar. Se elimina definitivamente solo, <strong>{{ dias }} día{{ dias|pluralize }}</strong> después de borrado. Al eliminar una venta confirmada, su stock vuelve al inventario.</p>
+<p class="text-muted" id="tour-papelera-intro">Lo que borrás queda acá y se puede recuperar. Se elimina definitivamente solo, <strong>{{ dias }} día{{ dias|pluralize }}</strong> después de borrado. Al eliminar una venta confirmada, su stock vuelve al inventario.</p>
 
 {% if total == 0 %}
 <div class="alert alert-secondary">La papelera está vacía. 🎉</div>
@@ -82,5 +82,11 @@
     </table></div>
 </div>
 {% endif %}
+
+<script>
+window.tourSteps = [
+    { element: '#tour-papelera-intro', popover: { title: 'Papelera', description: 'Recetas, productos y ventas borradas quedan acá recuperables antes de eliminarse para siempre.' } },
+];
+</script>
 
 {% endblock %}

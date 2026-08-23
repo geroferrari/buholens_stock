@@ -197,23 +197,12 @@
 
 // Tour guiado: recorre cada tarjeta de esta página (que ya listan todas las
 // funcionalidades) usando su propio título y descripción, sin duplicar texto.
-if (new URLSearchParams(location.search).get('tour')) {
-    const steps = [...document.querySelectorAll('[data-tour]')].map((el) => ({
-        element: el,
-        popover: {
-            title: el.querySelector('.card-title').textContent.trim(),
-            description: el.querySelector('.card-text').textContent.trim(),
-        },
-    }));
-    if (steps.length) {
-        window.driver.js.driver({
-            showProgress: true,
-            nextBtnText: 'Siguiente',
-            prevBtnText: 'Atrás',
-            doneBtnText: 'Listo',
-            steps,
-        }).drive();
-    }
-}
+window.tourSteps = [...document.querySelectorAll('[data-tour]')].map((el) => ({
+    element: el,
+    popover: {
+        title: el.querySelector('.card-title').textContent.trim(),
+        description: el.querySelector('.card-text').textContent.trim(),
+    },
+}));
 </script>
 {% endblock %}

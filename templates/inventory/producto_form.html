@@ -19,7 +19,7 @@
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
 
-    <div class="card shadow-sm mb-3">
+    <div class="card shadow-sm mb-3" id="tour-datos-producto">
         <div class="card-header fw-bold">Datos del producto</div>
         <div class="card-body row g-3">
             <div class="col-md-4">
@@ -52,7 +52,7 @@
         </div>
     </div>
 
-    <div class="card shadow-sm mb-3">
+    <div class="card shadow-sm mb-3" id="tour-precio-stock">
         <div class="card-header fw-bold">Precio y stock</div>
         <div class="card-body row g-3">
             {% for name in "precio_costo,porcentaje_iva,precio"|split %}
@@ -65,12 +65,20 @@
         </div>
     </div>
 
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2" id="tour-guardar-producto">
         <button type="submit" class="btn btn-success">Guardar</button>
         <button type="submit" name="imprimir_etiqueta" value="1" class="btn btn-primary">🏷️ Guardar e imprimir etiqueta</button>
         {% if cancel_url %}<a href="{{ cancel_url }}" class="btn btn-outline-secondary">Cancelar</a>{% endif %}
     </div>
 </form>
+
+<script>
+window.tourSteps = [
+    { element: '#tour-datos-producto', popover: { title: 'Datos del producto', description: 'Código de barras (se genera solo si lo dejás vacío), categoría, proveedor, marca y demás datos. Los campos cambian según la categoría elegida.' } },
+    { element: '#tour-precio-stock', popover: { title: 'Precio y stock', description: 'Costo, IVA y precio de venta.' } },
+    { element: '#tour-guardar-producto', popover: { title: 'Guardar', description: '"Guardar e imprimir etiqueta" además abre de una la etiqueta de código de barras lista para imprimir.' } },
+];
+</script>
 
 {% endblock %}
 

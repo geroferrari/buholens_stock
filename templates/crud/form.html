@@ -5,7 +5,7 @@
 
 <h3 class="mb-3">{{ title }}</h3>
 
-<form method="post" enctype="multipart/form-data" class="card shadow-sm">
+<form method="post" enctype="multipart/form-data" class="card shadow-sm" id="tour-form">
     <div class="card-body">
         {% csrf_token %}
         {% if form.non_field_errors %}
@@ -38,11 +38,18 @@
             {% endfor %}
         </div>
         <div class="mt-4 d-flex gap-2">
-            <button type="submit" class="btn btn-success">Guardar</button>
+            <button type="submit" id="tour-guardar" class="btn btn-success">Guardar</button>
             {% if cancel_url %}<a href="{{ cancel_url }}" class="btn btn-outline-secondary">Cancelar</a>{% endif %}
         </div>
     </div>
 </form>
+
+<script>
+window.tourSteps = (window.tourSteps || []).concat([
+    { element: '#tour-form', popover: { title: 'Formulario', description: 'Completá los campos que necesites (los obligatorios están marcados) y guardá.' } },
+    { element: '#tour-guardar', popover: { title: 'Guardar', description: 'Confirma el alta o la edición.' } },
+]);
+</script>
 
 {% endblock %}
 

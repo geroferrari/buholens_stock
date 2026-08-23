@@ -1,5 +1,5 @@
 {% load form_extras %}
-<div class="card shadow-sm mb-3">
+<div class="card shadow-sm mb-3" id="tour-datos-generales">
     <div class="card-header fw-bold">Datos generales</div>
     <div class="card-body row g-3">
         {% if mostrar_cliente %}
@@ -73,7 +73,7 @@
     </div>
 </div>
 
-<div class="card shadow-sm mb-3">
+<div class="card shadow-sm mb-3" id="tour-lejos">
     <div class="card-header fw-bold">Lejos</div>
     <div class="card-body row g-3">
         <div class="col-12 fw-semibold text-muted">Ojo derecho</div>
@@ -98,7 +98,7 @@
     </div>
 </div>
 
-<div class="card shadow-sm mb-3">
+<div class="card shadow-sm mb-3" id="tour-cerca">
     <div class="card-header fw-bold">Cerca</div>
     <div class="card-body row g-3">
         <div class="col-12 fw-semibold text-muted">Ojo derecho</div>
@@ -132,7 +132,7 @@
     </div>
 </div>
 
-<div class="card shadow-sm mb-3">
+<div class="card shadow-sm mb-3" id="tour-lentes-contacto-receta">
     <div class="card-header fw-bold">Lentes de contacto</div>
     <div class="card-body row g-3">
         <div class="col-12">
@@ -157,7 +157,7 @@
             <label class="form-label">{{ form|field_label:"archivo" }}</label>
             {{ form|field:"archivo" }}
             {% for error in form|field_errors:"archivo" %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-            <div class="mt-2">
+            <div class="mt-2" id="tour-foto-receta">
                 <button type="button" id="btn-foto-receta" class="btn btn-outline-secondary btn-sm">📷 Sacar foto de la receta con el celu</button>
                 <input type="file" id="input-foto-receta" accept="image/*" capture="environment" class="d-none">
             </div>

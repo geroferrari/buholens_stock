@@ -3,7 +3,7 @@
 <h3>Ingreso de mercadería</h3>
 <p class="text-muted">Si el producto todavía no existe, primero cargalo desde <a href="{% url 'inventory:producto_nuevo' %}">Productos → Nuevo</a>.</p>
 
-<div class="card shadow-sm">
+<div class="card shadow-sm" id="tour-ingreso">
     <div class="card-body">
         <div class="row g-2 align-items-end">
             <div class="col-md-3">
@@ -22,13 +22,21 @@
             </div>
         </div>
         <div class="form-text">Cargá la cantidad y escaneá el código: el ingreso se registra solo (no hace falta apretar ningún botón). También podés tipear el código y presionar Enter.</div>
-        <div class="form-check mt-2">
+        <div class="form-check mt-2" id="tour-ingreso-manual">
             <input type="checkbox" class="form-check-input" id="chk-manual">
             <label class="form-check-label small" for="chk-manual">Ingresar código de barras manualmente (sin lector), con botón para registrar</label>
         </div>
         <div id="resultado" class="mt-3"></div>
     </div>
 </div>
+
+<script>
+window.tourSteps = [
+    { element: '#tour-ingreso', popover: { title: 'Ingreso de mercadería', description: 'Poné la cantidad y escaneá: el stock se suma solo, sin apretar ningún botón.' } },
+    { element: '#tour-ingreso-manual', popover: { title: 'Sin lector', description: 'Si no tenés el lector a mano, tildá esto para tipear el código y usar un botón para registrar.' } },
+    { element: '#resultado', popover: { title: 'Resultado', description: 'Cada ingreso confirmado aparece acá, con opción de deshacerlo si fue un error.' } },
+];
+</script>
 
 <script>
 (function() {

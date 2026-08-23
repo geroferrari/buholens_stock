@@ -9,7 +9,7 @@
     {% endif %}
 </div>
 
-<div class="card shadow-sm border-primary mb-3">
+<div class="card shadow-sm border-primary mb-3" id="tour-escanear">
     <div class="card-header bg-primary text-white fw-bold">🔍 Escanear producto</div>
     <div class="card-body">
         <div class="input-group">
@@ -33,7 +33,7 @@
 </div>
 
 {% if show_search %}
-<form method="get" class="mb-3">
+<form method="get" class="mb-3" id="tour-buscar">
     <div class="input-group" style="max-width: 400px;">
         <input type="text" name="q" class="form-control" placeholder="{{ search_placeholder }}" value="{{ search_query }}">
         <button class="btn btn-outline-secondary" type="submit">Buscar</button>
@@ -41,7 +41,7 @@
 </form>
 {% endif %}
 
-<div class="card shadow-sm">
+<div class="card shadow-sm" id="tour-tabla">
     <div class="table-responsive">
         <table class="table table-sm table-hover mb-0 align-middle">
             <thead class="table-light">
@@ -73,6 +73,14 @@
     </ul>
 </nav>
 {% endif %}
+
+{% include "crud/_tour_list.html" %}
+<script>
+window.tourSteps.unshift({
+    element: '#tour-escanear',
+    popover: { title: 'Escanear producto', description: 'Escaneá o tipeá un código para ver el precio en un popup, sin buscar en la tabla.' },
+});
+</script>
 
 {% endblock %}
 

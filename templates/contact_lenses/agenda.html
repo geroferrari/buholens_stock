@@ -7,7 +7,7 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
     <h3 class="mb-0">👁️ Lentes de contacto <span class="text-muted fs-5">— pruebas</span></h3>
     <div class="d-flex gap-2">
-        <a href="{% url 'contact_lenses:prueba_nueva' %}" class="btn btn-success btn-sm">+ Agendar prueba</a>
+        <a href="{% url 'contact_lenses:prueba_nueva' %}" id="tour-agendar" class="btn btn-success btn-sm">+ Agendar prueba</a>
     </div>
 </div>
 
@@ -17,7 +17,7 @@
     <a href="?anio={{ nav_next.anio }}&mes={{ nav_next.mes }}" class="btn btn-outline-secondary btn-sm">Mes siguiente →</a>
 </div>
 
-<div class="table-responsive mb-3">
+<div class="table-responsive mb-3" id="tour-calendario">
 <table class="table table-bordered mb-0" style="table-layout:fixed;">
     <thead>
         <tr class="text-center small text-muted">
@@ -79,5 +79,12 @@
 {% else %}
 <div class="alert alert-info">No hay pruebas agendadas en {{ mes_nombre }}.</div>
 {% endif %}
+
+<script>
+window.tourSteps = [
+    { element: '#tour-agendar', popover: { title: 'Agendar prueba', description: 'Reservá el día y horario para que un cliente pruebe lentes de contacto.' } },
+    { element: '#tour-calendario', popover: { title: 'Calendario', description: 'Cada prueba agendada aparece en su día. Click en el número del día para agendar directo esa fecha.' } },
+];
+</script>
 
 {% endblock %}

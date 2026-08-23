@@ -10,7 +10,7 @@
         <a href="?export=csv{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-outline-secondary">⬇️ Exportar CSV</a>
         {% endif %}
         {% if create_url %}
-        <a href="{{ create_url }}" class="btn btn-primary">+ Nuevo</a>
+        <a href="{{ create_url }}" id="tour-nuevo" class="btn btn-primary">+ Nuevo</a>
         {% endif %}
     </div>
 </div>
@@ -22,7 +22,7 @@
 {% endif %}
 
 {% if show_search %}
-<form method="get" class="mb-3">
+<form method="get" class="mb-3" id="tour-buscar">
     <div class="input-group" style="max-width: 400px;">
         <input type="text" name="q" class="form-control" placeholder="{{ search_placeholder }}" value="{{ search_query }}">
         <button class="btn btn-outline-secondary" type="submit">Buscar</button>
@@ -32,7 +32,7 @@
 
 {% block extra_filters %}{% endblock %}
 
-<div class="card shadow-sm">
+<div class="card shadow-sm" id="tour-tabla">
     <div class="table-responsive">
         <table class="table table-sm table-hover mb-0 align-middle">
             <thead class="table-light">
@@ -88,5 +88,7 @@
 {% endif %}
 
 {% block extra_content %}{% endblock %}
+
+{% include "crud/_tour_list.html" %}
 
 {% endblock %}

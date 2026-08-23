@@ -194,7 +194,7 @@
 <div id="wizard-progress" class="mb-3 d-flex flex-wrap gap-1"></div>
 
 <div class="row g-4">
-    <div class="col-12 wizard-step" data-step="1">
+    <div class="col-12 wizard-step" data-step="1" id="tour-paso1">
         <div class="card shadow-sm border-primary">
             <div class="card-header bg-primary text-white fw-bold">Paso 1 · ¿Quién atiende la venta?</div>
             <div class="card-body">
@@ -208,7 +208,7 @@
         </div>
     </div>
 
-    <div class="col-12 wizard-step" data-step="2">
+    <div class="col-12 wizard-step" data-step="2" id="tour-paso2">
         <div class="card shadow-sm">
             <div class="card-header bg-light fw-bold small text-uppercase text-muted">Paso 2 · Elegir cliente</div>
             <div class="card-body">
@@ -261,7 +261,7 @@
         </div>
     </div>
 
-    <div class="col-12 wizard-step" data-step="4">
+    <div class="col-12 wizard-step" data-step="4" id="tour-paso4">
         <div class="card shadow-sm border-primary">
             <div class="card-header bg-primary text-white fw-bold">Paso 4 · Cargar productos</div>
             <div class="card-body">
@@ -283,11 +283,22 @@
     </div>
 </div>
 
-<div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top position-sticky bottom-0 bg-white pb-2">
+<div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top position-sticky bottom-0 bg-white pb-2" id="tour-wizard-nav">
     <button type="button" id="wizard-back" class="btn btn-outline-secondary">← Atrás</button>
     <div id="wizard-step-label" class="text-muted small text-center"></div>
     <button type="button" id="wizard-next" class="btn btn-primary">Siguiente →</button>
 </div>
+
+<script>
+// El punto de venta es un wizard (pos.js) que oculta los pasos que no están
+// activos: Driver.js no puede resaltar bien una tarjeta en display:none, así
+// que el tour solo señala lo que está siempre visible (la barra de pasos, el
+// paso 1 que arranca visible, y la navegación), en vez de saltar entre pasos.
+window.tourSteps = [
+    { element: '#tour-paso1', popover: { title: 'Paso 1 · Vendedor/a', description: 'La venta se completa en varios pasos (arriba tenés la lista: vendedor, cliente, productos, forma de pago, etc. — los que no aplican ni aparecen). Empezá eligiendo quién atiende.' } },
+    { element: '#tour-wizard-nav', popover: { title: 'Navegación', description: 'Avanzá y volvé entre los pasos con estos botones. Más adelante vas a poder buscar/cargar cliente, escanear productos (con lector o cámara) y ver el carrito con el total.' } },
+];
+</script>
 
 {% endblock %}
 

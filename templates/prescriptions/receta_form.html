@@ -25,9 +25,20 @@
 
     {% include "prescriptions/_receta_campos.html" with mostrar_cliente=True %}
 
-    <button type="submit" class="btn btn-success">Guardar</button>
+    <button type="submit" id="tour-guardar-receta" class="btn btn-success">Guardar</button>
     {% if cancel_url %}<a href="{{ cancel_url }}" class="btn btn-outline-secondary">Cancelar</a>{% endif %}
 </form>
+
+<script>
+window.tourSteps = [
+    { element: '#tour-datos-generales', popover: { title: 'Datos generales', description: 'Cliente, médico, obra social y fecha. Los buscadores dan de alta uno nuevo solo con escribir el nombre, sin salir de acá.' } },
+    { element: '#tour-lejos', popover: { title: 'Lejos', description: 'Graduación de lejos para cada ojo, tipo/color de cristal y tratamientos.' } },
+    { element: '#tour-cerca', popover: { title: 'Cerca', description: 'Lo mismo pero para la graduación de cerca.' } },
+    { element: '#tour-lentes-contacto-receta', popover: { title: 'Lentes de contacto', description: 'Activá este switch si la receta es de lentes de contacto en vez de anteojos.' } },
+    { element: '#tour-foto-receta', popover: { title: 'Foto de la receta', description: 'Sacale una foto con el celu para tener el original a mano después.' } },
+    { element: '#tour-guardar-receta', popover: { title: 'Guardar', description: 'Guarda la receta y la deja asociada al cliente elegido.' } },
+];
+</script>
 
 {% endblock %}
 

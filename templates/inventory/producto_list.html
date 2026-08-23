@@ -38,7 +38,7 @@
         <button type="button" id="btn-actualizar-precios-seleccion" class="btn btn-outline-success" disabled>💲 Actualizar precios</button>
         <button type="button" id="btn-eliminar-seleccion" class="btn btn-outline-danger" disabled>🗑️ Eliminar seleccionados</button>
         {% endif %}
-        {% if create_url %}<a href="{{ create_url }}" class="btn btn-primary">+ Nuevo</a>{% endif %}
+        {% if create_url %}<a href="{{ create_url }}" id="tour-nuevo" class="btn btn-primary">+ Nuevo</a>{% endif %}
     </div>
 </div>
 
@@ -88,7 +88,7 @@
 {% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
 {% endif %}
 
-<form method="get" class="row g-2 mb-3 align-items-end">
+<form method="get" class="row g-2 mb-3 align-items-end" id="tour-buscar">
     <div class="col-auto" style="min-width: 260px;">
         <label class="form-label small mb-1">Buscar</label>
         <input type="text" name="q" class="form-control" placeholder="{{ search_placeholder }}" value="{{ search_query }}">
@@ -125,7 +125,7 @@
     </div>
 </form>
 
-<div class="card shadow-sm">
+<div class="card shadow-sm" id="tour-tabla">
     <div class="table-responsive">
         <table class="table table-sm table-hover mb-0 align-middle">
             <thead class="table-light">
@@ -185,6 +185,17 @@
     </ul>
 </nav>
 {% endif %}
+
+{% include "crud/_tour_list.html" %}
+<script>
+(function () {
+    const i = window.tourSteps.findIndex((s) => s.element === '#tour-tabla');
+    window.tourSteps.splice(i, 0, {
+        element: '#check-all',
+        popover: { title: 'Selección múltiple', description: 'Tildá varios productos para imprimir etiquetas, actualizar precios o eliminar en lote.' },
+    });
+})();
+</script>
 
 {% endblock %}
 

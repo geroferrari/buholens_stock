@@ -10,7 +10,7 @@
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
 
-    <div class="card shadow-sm mb-3">
+    <div class="card shadow-sm mb-3" id="tour-orden-datos">
         <div class="card-body row g-3">
             <div class="col-md-6 position-relative">
                 <label class="form-label">Cliente</label>
@@ -53,9 +53,16 @@
         </div>
     </div>
 
-    <button type="submit" class="btn btn-success">Crear orden de laboratorio</button>
+    <button type="submit" id="tour-orden-crear" class="btn btn-success">Crear orden de laboratorio</button>
     <a href="{% url 'prescriptions:orden_laboratorio_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
 </form>
+
+<script>
+window.tourSteps = [
+    { element: '#tour-orden-datos', popover: { title: 'Datos de la orden', description: 'Cliente, la receta a usar (elegí el cliente primero para verlas), el cristal y el armazón (o "trae el suyo").' } },
+    { element: '#tour-orden-crear', popover: { title: 'Crear orden', description: 'Queda lista para imprimir y mandar al laboratorio.' } },
+];
+</script>
 
 {% endblock %}
 

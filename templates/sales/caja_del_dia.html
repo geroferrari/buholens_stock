@@ -4,7 +4,7 @@
 
 <h3 class="mb-3">💰 Caja del día</h3>
 
-<form method="get" class="row g-2 mb-4 align-items-end">
+<form method="get" class="row g-2 mb-4 align-items-end" id="tour-fecha-caja">
     <div class="col-auto">
         <label class="form-label">Fecha</label>
         <input type="date" name="fecha" class="form-control" value="{{ fecha }}">
@@ -14,7 +14,7 @@
     </div>
 </form>
 
-<div class="card shadow-sm">
+<div class="card shadow-sm" id="tour-tabla-caja">
     <div class="card-body">
         <table class="table align-middle mb-0">
             <thead class="table-light">
@@ -41,5 +41,12 @@
         </table>
     </div>
 </div>
+
+<script>
+window.tourSteps = [
+    { element: '#tour-fecha-caja', popover: { title: 'Elegir fecha', description: 'Por defecto muestra el día de hoy; cambiá la fecha para revisar otro día.' } },
+    { element: '#tour-tabla-caja', popover: { title: 'Total por forma de pago', description: 'Suma las ventas confirmadas de ese día, discriminadas por efectivo, tarjeta, transferencia, etc.' } },
+];
+</script>
 
 {% endblock %}

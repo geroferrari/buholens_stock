@@ -5,7 +5,7 @@
 
 <h3 class="mb-3">📊 Estadísticas</h3>
 
-<div class="card shadow-sm mb-4">
+<div class="card shadow-sm mb-4" id="tour-historial">
     <div class="card-header bg-light fw-bold">🗂️ Historial</div>
     <div class="card-body d-flex flex-wrap gap-2">
         <a href="{% url 'inventory:movimiento_lista' %}" class="btn btn-outline-secondary btn-sm">Ingresos de stock</a>
@@ -37,7 +37,7 @@
 <!-- ===================== VENTAS ===================== -->
 <div class="tab-pane fade show active" id="tab-ventas" role="tabpanel">
 
-    <form method="get" class="row g-2 align-items-end mb-4">
+    <form method="get" class="row g-2 align-items-end mb-4" id="tour-filtro-ventas">
         <div class="col-auto">
             <label class="form-label small mb-0">Desde</label>
             <input type="date" name="desde" value="{{ desde }}" class="form-control form-control-sm">
@@ -669,5 +669,11 @@ if (tabParam === 'clientes') {
 } else if (tabParam === 'lc') {
     new bootstrap.Tab(document.getElementById('tab-btn-lc')).show();
 }
+
+window.tourSteps = [
+    { element: '#tour-historial', popover: { title: 'Historial', description: 'Accesos directos a los listados completos: ingresos de stock, ventas, recetas, clientes y devoluciones.' } },
+    { element: '#statsTabs', popover: { title: 'Secciones', description: 'Ventas, Stock, Clientes y recetas, y Lentes de contacto: cada una con sus propios gráficos.' } },
+    { element: '#tour-filtro-ventas', popover: { title: 'Período', description: 'Los gráficos de la pestaña activa se recalculan según el rango de fechas elegido.' } },
+];
 </script>
 {% endblock %}
