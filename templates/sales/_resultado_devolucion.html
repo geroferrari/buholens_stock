@@ -1,0 +1,12 @@
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% else %}
+<div class="alert alert-success">
+    Devolución registrada: <strong>{{ devolucion.cantidad }}</strong> x <strong>{{ producto }}</strong> — ${{ devolucion.monto }}.
+    {% if producto.categoria.controla_stock %}
+    Stock actualizado: <strong>{{ producto.stock_actual }}</strong>.
+    {% else %}
+    (Este producto no controla stock, no se generó movimiento de inventario.)
+    {% endif %}
+</div>
+{% endif %}

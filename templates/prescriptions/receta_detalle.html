@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load form_extras %}
+{% block title %}Receta - {{ receta.cliente }}{% endblock %}
+{% block content %}
+
+<style>
+    .valor-con-signo { display: inline-block; min-width: 1.8em; text-align: center; font-weight: bold; border-radius: 4px; padding: 0 0.3em; }
+    .valor-con-signo.signo-positivo { background: #d1e7dd; color: #0f5132; }
+    .valor-con-signo.signo-negativo { background: #f8d7da; color: #842029; }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h3 class="mb-0">📋 Receta de {{ receta.cliente.nombre_completo|default:"Cliente sin nombre" }}</h3>
+        <div class="text-muted small">Fecha de la receta: {{ receta.fecha_recibido }}</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'prescriptions:receta_editar' receta.pk %}" class="btn btn-primary btn-sm">✏️ Corregir</a>
+        <a href="{% url 'customers:cliente_detalle' receta.cliente.pk %}" class="btn btn-outline-secondary btn-sm">Volver al cliente</a>
+    </div>
+</div>
+
+{% if messages %}
+{% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
+{% endif %}
+
+{% for grupo in grupos %}
+<div class="card shadow-sm mb-3">
+    <div class="card-header fw-bold">{{ grupo.titulo }}</div>
+    <div class="card-body row g-3">
+        {% for fila in grupo.filas %}
+        <div class="col-md-3">
+            <div class="text-muted small">{{ fila.label }}</div>
+            <div>
+                {% if fila.campo|es_campo_con_signo %}
+                {% if fila.valor_anterior %}
+                <span class="valor-con-signo {{ fila.valor_anterior|clase_signo }} text-decoration-line-through text-muted me-1">{{ fila.valor_anterior }}</span>
+                <span class="valor-con-signo {{ fila.valor|clase_signo }} fw-semibold">{{ fila.valor }}</span>
+                {% else %}
+                <span class="valor-con-signo {{ fila.valor|clase_signo }}">{{ fila.valor }}</span>
+                {% endif %}
+                {% elif fila.valor_anterior %}
+                <span class="text-decoration-line-through text-muted me-1">{{ fila.valor_anterior }}</span>
+                <span class="fw-semibold">{{ fila.valor }}</span>
+                {% else %}
+                {{ fila.valor }}
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% empty %}
+<div class="text-center text-muted py-4">Esta receta todavía no tiene ningún dato cargado.</div>
+{% endfor %}
+
+{% endblock %}

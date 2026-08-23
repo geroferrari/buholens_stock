@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% load form_extras %}
+{% block title %}Prueba de {{ prueba.nombre_cliente }}{% endblock %}
+{% block content %}
+
+{% if messages %}{% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">Prueba de lentes de contacto</h3>
+    <a href="{% url 'contact_lenses:agenda' %}" class="btn btn-outline-secondary btn-sm">← Volver a la agenda</a>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+            <h5 class="card-title mb-2">{{ prueba.nombre_cliente }}</h5>
+            <span class="badge bg-{{ prueba.color_estado }} fs-6">{{ prueba.get_estado_display }}</span>
+        </div>
+        <p class="mb-1"><strong>📅 Fecha y hora:</strong> {{ prueba.fecha_hora|date:'d/m/Y H:i' }}</p>
+        <p class="mb-1"><strong>🧑‍💼 Atiende:</strong> {{ prueba.vendedor.nombre }}</p>
+        {% if prueba.telefono_contacto %}<p class="mb-1"><strong>📞 Teléfono:</strong> {{ prueba.telefono_contacto }}</p>{% endif %}
+        {% if prueba.cliente_id %}<p class="mb-1"><strong>👤 Cliente:</strong> <a href="{% url 'customers:cliente_detalle' prueba.cliente_id %}">{{ prueba.cliente.nombre_completo }}</a></p>{% endif %}
+        {% if prueba.observaciones %}<p class="mb-1"><strong>📝 Observaciones:</strong> {{ prueba.observaciones }}</p>{% endif %}
+    </div>
+</div>
+
+{# Graduación del cliente: para que la vendedora la tenga a mano en la prueba #}
+<div class="card shadow-sm mb-3">
+    <div class="card-header bg-light fw-bold d-flex justify-content-between align-items-center">
+        <span>👁 Graduación del cliente</span>
+        {% if receta %}<a href="{% url 'prescriptions:receta_detalle' receta.pk %}" class="btn btn-sm btn-outline-secondary">Ver receta completa</a>{% endif %}
+    </div>
+    <div class="card-body">
+        {% if receta %}
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered text-center mb-2" style="max-width:640px;">
+                <thead class="table-light">
+                    <tr><th rowspan="2" class="align-middle">Ojo</th><th colspan="4">Lejos</th><th colspan="3">Cerca</th></tr>
+                    <tr><th>Esf.</th><th>Cil.</th><th>Eje</th><th>Adic.</th><th>Esf.</th><th>Cil.</th><th>Eje</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="fw-bold">OD</td>
+                        <td>{{ receta.lejos_od_esfera|signo|default_if_none:"—" }}</td>
+                        <td>{{ receta.lejos_od_cilindro|signo|default_if_none:"—" }}</td>
+                        <td>{{ receta.lejos_od_eje|default_if_none:"—" }}</td>
+                        <td>{{ receta.lejos_od_adicion|signo|default_if_none:"—" }}</td>
+                        <td>{{ receta.cerca_od_esfera|signo|default_if_none:"—" }}</td>
+                        <td>{{ receta.cerca_od_cilindro|signo|default_if_none:"—" }}</td>
+                        <td>{{ receta.cerca_od_eje|default_if_none:"—" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="fw-bold">OI</td>
+                        <td>{{ receta.lejos_oi_esfera|signo|default_if_none:"—" }}</td>
+                        <td>{{ receta.lejos_oi_cilindro|signo|default_if_none:"—" }}</td>
+                        <td>{{ receta.lejos_oi_eje|default_if_none:"—" }}</td>
+                        <td>{{ receta.lejos_oi_adicion|signo|default_if_none:"—" }}</td>
+                        <td>{{ receta.cerca_oi_esfera|signo|default_if_none:"—" }}</td>
+                        <td>{{ receta.cerca_oi_cilindro|signo|default_if_none:"—" }}</td>
+                        <td>{{ receta.cerca_oi_eje|default_if_none:"—" }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        {% if receta.es_lentes_contacto %}<p class="mb-1">🔵 <strong>Lentes de contacto</strong>{% if receta.marca_lentes_contacto %} — marca {{ receta.marca_lentes_contacto }}{% endif %}</p>{% endif %}
+        <p class="text-muted small mb-2">Recibida el {{ receta.fecha_recibido|date:'d/m/Y' }}{% if receta.medico %} · Dr/a. {{ receta.medico }}{% endif %}{% if receta != prueba.receta %} · <em>última del cliente</em>{% endif %}</p>
+        {% else %}
+        <p class="text-muted mb-2">El cliente todavía no tiene una graduación cargada.</p>
+        {% endif %}
+        <a href="{% url 'prescriptions:receta_nueva' %}?prueba={{ prueba.pk }}" class="btn btn-sm {% if receta %}btn-outline-primary{% else %}btn-primary{% endif %}">
+            + Cargar {% if receta %}una graduación nueva{% else %}la graduación del cliente{% endif %}
+        </a>
+    </div>
+</div>
+
+{# Info de la venta: solo admin (es la parte de plata) #}
+{% if es_admin %}
+    {% if prueba.venta_id %}
+    <div class="alert alert-{% if prueba.venta_confirmada %}success{% else %}warning{% endif %}">
+        <strong>🛒 Venta #{{ prueba.venta_id }}</strong> — {{ prueba.venta.get_estado_display }} — total <strong>${{ prueba.venta.total }}</strong>
+        {% if prueba.venta_abierta %}
+        · <a href="{% url 'sales:pos' prueba.venta_id %}">Continuar en el POS →</a>
+        {% else %}
+        · <a href="{% url 'sales:venta_detalle' prueba.venta_id %}">Ver venta →</a>
+        {% endif %}
+    </div>
+    {% elif prueba.estado == Estado.REALIZADA %}
+    <div class="alert alert-secondary">Prueba realizada, sin venta.</div>
+    {% endif %}
+{% endif %}
+
+<div class="d-flex flex-wrap gap-2 mb-4">
+    {# Registrar venta: crea la Venta en el POS y la linkea (admin) #}
+    {% if es_admin and not prueba.venta_id and prueba.estado != Estado.CANCELADA %}
+    <form method="post" action="{% url 'contact_lenses:iniciar_venta' prueba.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success">🛒 Registrar venta (ir al POS)</button>
+    </form>
+    {% endif %}
+    {% if es_admin and prueba.venta_abierta %}
+    <a href="{% url 'sales:pos' prueba.venta_id %}" class="btn btn-success">🛒 Continuar venta en el POS</a>
+    {% endif %}
+    {% if es_admin and prueba.estado == Estado.AGENDADA %}
+    <form method="post" action="{% url 'contact_lenses:marcar_realizada_sin_venta' prueba.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-success">✔ Realizada sin venta</button>
+    </form>
+    {% endif %}
+    <a href="{% url 'contact_lenses:prueba_editar' prueba.pk %}" class="btn btn-outline-primary">Editar</a>
+    {% if prueba.estado == Estado.AGENDADA %}
+    <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#form-reprogramar">🔁 Reprogramar</button>
+    <form method="post" action="{% url 'contact_lenses:marcar_cancelada' prueba.pk %}" onsubmit="return confirm('¿Cancelar esta prueba?');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-secondary">Cancelar prueba</button>
+    </form>
+    {% endif %}
+    <a href="{% url 'contact_lenses:prueba_eliminar' prueba.pk %}" class="btn btn-outline-danger ms-auto">Eliminar</a>
+</div>
+
+{% if prueba.estado == Estado.AGENDADA %}
+<div class="collapse mb-4" id="form-reprogramar">
+    <div class="card card-body">
+        <form method="post" action="{% url 'contact_lenses:reprogramar' prueba.pk %}" class="d-flex gap-2 align-items-end flex-wrap">
+            {% csrf_token %}
+            <div>
+                <label class="form-label small mb-0">Nueva fecha y hora</label>
+                <input type="datetime-local" name="fecha_hora" value="{{ prueba.fecha_hora|date:'Y-m-d\TH:i' }}" class="form-control form-control-sm" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Confirmar nuevo horario</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

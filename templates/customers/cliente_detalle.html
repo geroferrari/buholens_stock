@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}{{ cliente }}{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h3 class="mb-0">👤 {{ cliente.nombre_completo|default:"Cliente sin nombre" }}</h3>
+    <div class="d-flex gap-2">
+        <a href="{% url 'customers:cliente_editar' cliente.pk %}" class="btn btn-outline-secondary btn-sm">Editar datos</a>
+        <a href="{% url 'customers:cliente_lista' %}" class="btn btn-outline-secondary btn-sm">Volver al listado</a>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body row g-3">
+        <div class="col-md-4">
+            <div class="text-muted small">DNI</div>
+            <div>{{ cliente.dni|default:"—" }}</div>
+        </div>
+        <div class="col-md-4">
+            <div class="text-muted small">Teléfono</div>
+            <div class="d-flex align-items-center gap-2">
+                {{ cliente.telefono|default:"—" }}
+                {% if cliente.whatsapp_url_anteojo_listo %}
+                <a href="{{ cliente.whatsapp_url_anteojo_listo }}" target="_blank" class="btn btn-sm btn-outline-success">💬 Avisar que su anteojo llegó</a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="text-muted small">Email</div>
+            <div>{{ cliente.email|default:"—" }}</div>
+        </div>
+        <div class="col-md-4">
+            <div class="text-muted small">Dirección</div>
+            <div>{{ cliente.direccion|default:"—" }}</div>
+        </div>
+        <div class="col-md-4">
+            <div class="text-muted small">Obra social</div>
+            <div>{{ cliente.obra_social|default:"—" }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4 border-primary">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">📋 Recetas ({{ recetas|length }})</h5>
+        <a href="{% url 'prescriptions:receta_nueva' %}?cliente={{ cliente.pk }}" class="btn btn-sm btn-light">+ Nueva receta</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light">
+                <tr><th>Fecha de la receta</th><th>Médico</th><th>Obra social</th><th>Tipo</th><th></th></tr>
+            </thead>
+            <tbody>
+                {% for receta in recetas %}
+                <tr>
+                    <td class="text-nowrap">{{ receta.fecha_recibido }}</td>
+                    <td>{{ receta.medico|default:"—" }}</td>
+                    <td>{{ receta.obra_social|default:"—" }}</td>
+                    <td>{% if receta.es_lentes_contacto %}Lentes de contacto{% else %}Anteojos{% endif %}</td>
+                    <td><a href="{% url 'prescriptions:receta_detalle' receta.pk %}" class="btn btn-sm btn-outline-secondary">Ver</a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-3">Sin recetas registradas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header fw-bold">🛒 Ventas ({{ ventas|length }})</div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light"><tr><th>Fecha</th><th>Detalle</th><th>Pago</th><th>Total</th><th></th></tr></thead>
+            <tbody>
+                {% for venta in ventas %}
+                <tr>
+                    <td class="text-nowrap">
+                        {{ venta.fecha|date:"d/m/Y H:i" }}
+                        <br><span class="text-muted small">{{ venta.get_estado_display }}</span>
+                    </td>
+                    <td class="small">
+                        {% for item in venta.items.all %}{{ item.cantidad }}x {{ item.producto }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+                    </td>
+                    <td class="small text-nowrap">
+                        {{ venta.get_forma_pago_display|default:"—" }}
+                        {% if venta.vendedor %}<br><span class="text-muted">{{ venta.vendedor.nombre }}</span>{% endif %}
+                    </td>
+                    <td class="text-nowrap">${{ venta.total }}</td>
+                    <td><a href="{% url 'sales:venta_detalle' venta.pk %}" class="btn btn-sm btn-outline-secondary">Ver</a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-3">Sin ventas registradas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header fw-bold">🧾 Órdenes de laboratorio ({{ ordenes_laboratorio|length }})</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Fecha</th><th>Cristal</th><th>Estado</th><th></th></tr></thead>
+                    <tbody>
+                        {% for orden in ordenes_laboratorio %}
+                        <tr>
+                            <td class="text-nowrap">{{ orden.creado|date:"d/m/Y" }}</td>
+                            <td class="small">
+                                {{ orden.producto }}
+                                {% if orden.armazon_de_cliente %}<br><span class="text-muted">🙋 armazón del cliente</span>
+                                {% elif orden.armazon %}<br><span class="text-muted">🔗 {{ orden.armazon }}</span>{% endif %}
+                            </td>
+                            <td>{{ orden.get_estado_display }}</td>
+                            <td><a href="{% url 'prescriptions:orden_laboratorio_imprimir' orden.pk %}" target="_blank" class="btn btn-sm btn-outline-secondary">🧾 Imprimir</a></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">Sin órdenes de laboratorio registradas.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header fw-bold">↩️ Devoluciones {% if es_admin %}({{ devoluciones|length }}){% endif %}</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Fecha</th><th>Producto</th><th>Monto</th></tr></thead>
+                    <tbody>
+                        {% if es_admin %}
+                        {% for dev in devoluciones %}
+                        <tr>
+                            <td>{{ dev.fecha|date:"d/m/Y" }}</td>
+                            <td>{{ dev.producto }}</td>
+                            <td>${{ dev.monto }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">Sin devoluciones registradas.</td></tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">Solo visible para administradores/as.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

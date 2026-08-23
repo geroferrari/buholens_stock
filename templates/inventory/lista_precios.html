@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+{% block title %}Lista de precios{% endblock %}
+{% block container_class %}container-fluid px-4{% endblock %}
+{% block content %}
+<style>.col-avanzada { display: none; }</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h3 class="mb-0">💲 Lista de precios</h3>
+</div>
+
+<div class="alert alert-light border mb-3">
+    <strong>Cómo se usa:</strong>
+    <ol class="mb-0 ps-3 mt-1">
+        <li>Buscá los productos de la lista que te mandó el proveedor (elegí proveedor, marca y/o categoría abajo).</li>
+        <li>En la columna <strong>Costo</strong>, escribí lo que te cobra el proveedor por cada uno.</li>
+        <li>En <strong>Precio nuevo</strong>, escribí a cuánto lo vas a vender (o activá las opciones avanzadas para que se calcule solo).</li>
+        <li>Guardá: con el botón grande de abajo se guardan todos juntos, o con el 💾 de cada fila guardás uno solo.</li>
+    </ol>
+</div>
+
+{% if messages %}
+{% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
+{% endif %}
+
+<form method="get" class="row g-2 mb-3 align-items-end" id="form-filtros">
+    <div class="col-auto" style="min-width: 220px;">
+        <label class="form-label small mb-1">Buscar</label>
+        <input type="text" name="q" class="form-control filtro-catalogo" placeholder="Marca o modelo..." value="{{ search_query }}">
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-1">Proveedor</label>
+        <select name="proveedor" class="form-select filtro-catalogo">
+            <option value="">— todos —</option>
+            {% for p in proveedores %}
+            <option value="{{ p.id }}" {% if proveedor_seleccionado == p.id|stringformat:"s" %}selected{% endif %}>{{ p.nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-1">Marca</label>
+        <select name="marca" class="form-select filtro-catalogo">
+            <option value="">— todas —</option>
+            {% for m in marcas %}
+            <option value="{{ m.id }}" {% if marca_seleccionada == m.id|stringformat:"s" %}selected{% endif %}>{{ m.nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-1">Categoría</label>
+        <select name="categoria" class="form-select filtro-catalogo">
+            <option value="">— todas —</option>
+            {% for c in categorias %}
+            <option value="{{ c.id }}" {% if categoria_seleccionada == c.id|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <span class="text-muted small d-block">— o bien —</span>
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-1">💳 Financiación</label>
+        <select name="financiacion" class="form-select" id="filtro-financiacion">
+            <option value="">— ninguna —</option>
+            {% for plan in planes_financiacion %}
+            <option value="{{ plan.pk }}" {% if financiacion_seleccionada == plan.pk|stringformat:"s" %}selected{% endif %}>{{ plan.banco.nombre }} — {{ plan.nombre }}</option>
+            {% endfor %}
+        </select>
+        <div class="form-text">Muestra los productos alcanzados por esa promo. No se puede combinar con los filtros de la izquierda.</div>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary" type="submit">Buscar</button>
+    </div>
+</form>
+
+{% if not filtros_aplicados %}
+<div class="alert alert-info">Elegí al menos un filtro (proveedor, marca, categoría, financiación o búsqueda) para listar productos.</div>
+{% elif not productos %}
+<div class="alert alert-warning">No se encontró ningún producto con esos filtros.</div>
+{% else %}
+
+<div class="form-check form-switch mb-3">
+    <input class="form-check-input" type="checkbox" role="switch" id="chk-avanzado">
+    <label class="form-check-label" for="chk-avanzado">🔧 Mostrar opciones avanzadas (calcular el precio con una fórmula)</label>
+</div>
+
+<div class="seccion-avanzada" style="display:none;">
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            <label class="form-label fw-bold mb-2">Calcular el precio nuevo automáticamente para todos</label>
+            <div class="row g-2 align-items-end">
+                <div class="col-auto">
+                    <select id="bulk-operador" class="form-select">
+                        <option value="x">Multiplicar el costo por</option>
+                        <option value="+">Sumarle al costo</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <input type="number" id="bulk-valor" class="form-control" step="0.01" placeholder="Ej: 1.4 ó 2000">
+                </div>
+                <div class="col-auto">
+                    <button type="button" id="btn-aplicar-todos" class="btn btn-outline-primary">Calcular para todos</button>
+                </div>
+            </div>
+            <div class="form-text">Ejemplo: si el costo es $1000 y multiplicás por 1.4, el precio nuevo queda en $1400 (40% de margen). Se puede ajustar fila por fila después.</div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="{% url 'inventory:lista_precios_guardar' %}" id="form-lista-precios">
+    {% csrf_token %}
+    <input type="hidden" name="querystring" value="{{ request.GET.urlencode }}">
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Marca / Modelo</th>
+                        <th>Categoría</th>
+                        <th>Proveedor</th>
+                        <th style="width:170px;">Costo</th>
+                        <th style="width:280px;" class="col-avanzada">Fórmula</th>
+                        <th style="width:150px;">Precio actual</th>
+                        <th style="width:180px;">Precio nuevo</th>
+                        <th style="width:160px;">Aumento sobre precio actual</th>
+                        <th style="width:90px;">Margen de ganancia</th>
+                        <th style="width:300px;">Con promos / financiación</th>
+                        <th style="width:150px;">Última actualización</th>
+                        <th style="width:70px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% now "Y-m" as mes_actual %}
+                    {% for p in productos %}
+                    <tr class="fila-precio {% if p.planes_aplicables or p.promos_aplicables %}table-warning{% endif %}"
+                        data-pk="{{ p.pk }}"
+                        data-precio-actual="{{ p.precio|stringformat:'s' }}"
+                        data-promo-tipo="{{ p.promo_tipo }}"
+                        data-promo-valor="{{ p.promo_valor|stringformat:'s' }}"
+                        data-financ-pct="{{ p.financ_pct|stringformat:'s' }}"
+                        data-tiene-2x1="{{ p.tiene_2x1|yesno:'1,' }}">
+                        <td>{{ p.marca.nombre|default:"—" }} {{ p.modelo }}</td>
+                        <td class="text-muted">{{ p.categoria.nombre }}</td>
+                        <td class="text-muted">{{ p.proveedor.nombre|default:"—" }}</td>
+                        <td>
+                            <input type="number" name="costo_{{ p.pk }}" class="form-control form-control-sm input-costo" step="0.01" min="0" value="{{ p.precio_costo|stringformat:'s' }}">
+                            <div class="small text-muted span-costo-nota" style="display:none;">sin costo cargado: se usa el precio actual como base</div>
+                        </td>
+                        <td class="col-avanzada">
+                            <div class="input-group input-group-sm">
+                                <select class="form-select select-operador" style="max-width:110px;">
+                                    <option value="x">Multiplicar ×</option>
+                                    <option value="+">Sumar +</option>
+                                </select>
+                                <input type="number" class="form-control input-formula-valor" step="0.01" placeholder="valor" style="min-width:90px;">
+                            </div>
+                        </td>
+                        <td class="text-muted">${{ p.precio }}</td>
+                        <td><input type="number" name="precio_{{ p.pk }}" class="form-control form-control-sm input-precio" step="0.01" min="0" value="{{ p.precio|stringformat:'s' }}"></td>
+                        <td><span class="span-diferencia text-muted">—</span></td>
+                        <td>
+                            <span class="badge span-margen {% if p.margen_ganancia_pct == None %}bg-secondary{% elif p.margen_ganancia_pct < 0 %}bg-danger{% elif p.margen_ganancia_pct >= 100 %}bg-success{% else %}bg-secondary{% endif %}">
+                                {{ p.margen_ganancia_pct|default:"—" }}{% if p.margen_ganancia_pct != None %}%{% endif %}
+                            </span>
+                        </td>
+                        <td class="small">
+                            {% if p.promos_aplicables or p.planes_aplicables %}
+                            <div class="mb-1">
+                                {% for promo in p.promos_aplicables %}<span class="badge bg-info text-dark me-1" title="Descuento al cliente">🏷️ {{ promo.nombre }}</span>{% endfor %}
+                                {% for plan in p.planes_aplicables %}<span class="badge bg-warning text-dark me-1" title="Costo de financiación que absorbe el comercio">💳 {{ plan.banco.nombre }} {{ plan.nombre }}</span>{% endfor %}
+                            </div>
+                            <div class="span-efecto"></div>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="small span-actualizado {% if p.actualizado|date:'Y-m' == mes_actual %}text-success fw-bold{% else %}text-muted{% endif %}">{{ p.actualizado|date:"d/m/Y H:i" }}</td>
+                        <td><button type="button" class="btn btn-sm btn-outline-success btn-guardar-fila" title="Guardar solo este producto">💾</button></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-success btn-lg mt-3">💾 Guardar cambios ({{ productos|length }} producto{{ productos|length|pluralize }})</button>
+</form>
+
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const chkAvanzado = document.getElementById('chk-avanzado');
+function aplicarVisibilidadAvanzada() {
+    document.querySelector('.seccion-avanzada').style.display = chkAvanzado.checked ? '' : 'none';
+    document.querySelectorAll('.col-avanzada').forEach(el => {
+        el.style.display = chkAvanzado.checked ? 'table-cell' : 'none';
+    });
+}
+if (chkAvanzado) {
+    chkAvanzado.addEventListener('change', aplicarVisibilidadAvanzada);
+}
+
+// Los filtros de catálogo (buscar/proveedor/marca/categoría) y el filtro de
+// financiación son excluyentes: al tocar uno se limpia y deshabilita el otro
+// grupo, así el buscador nunca manda los dos a la vez.
+const filtrosCatalogo = document.querySelectorAll('.filtro-catalogo');
+const filtroFinanciacion = document.getElementById('filtro-financiacion');
+filtrosCatalogo.forEach(el => {
+    ['input', 'change'].forEach(evento => el.addEventListener(evento, () => {
+        if (!el.value) return;
+        filtroFinanciacion.value = '';
+        filtroFinanciacion.disabled = true;
+    }));
+});
+if (filtroFinanciacion) {
+    filtroFinanciacion.addEventListener('change', () => {
+        if (!filtroFinanciacion.value) {
+            filtrosCatalogo.forEach(el => { el.disabled = false; });
+            return;
+        }
+        filtrosCatalogo.forEach(el => { el.value = ''; el.disabled = true; });
+    });
+    // Al cargar la página, si ya venía un filtro de financiación puesto (por
+    // URL), arrancar con el otro grupo deshabilitado para que se note que
+    // son excluyentes.
+    if (filtroFinanciacion.value) {
+        filtrosCatalogo.forEach(el => { el.disabled = true; });
+    }
+}
+
+function costoBase(fila) {
+    // Muchos productos solo tienen cargado el precio de venta, sin costo
+    // (el proveedor no lo mandó, o nunca se cargó). Sin costo no hay forma
+    // de calcular un margen real, así que en ese caso se usa el precio
+    // actual como base — al menos permite usar la fórmula y ver diferencias,
+    // aclarando que no es un margen contra costo real.
+    const costo = parseFloat(fila.querySelector('.input-costo').value) || 0;
+    const nota = fila.querySelector('.span-costo-nota');
+    if (costo > 0) {
+        nota.style.display = 'none';
+        return costo;
+    }
+    nota.style.display = '';
+    return parseFloat(fila.dataset.precioActual) || 0;
+}
+
+function recalcularFila(fila) {
+    const costo = costoBase(fila);
+    const operador = fila.querySelector('.select-operador').value;
+    const valorFormula = fila.querySelector('.input-formula-valor').value;
+    if (valorFormula !== '') {
+        const valor = parseFloat(valorFormula);
+        if (!isNaN(valor)) {
+            fila.querySelector('.input-precio').value = (operador === 'x' ? costo * valor : costo + valor).toFixed(2);
+        }
+    }
+    // Aunque no haya fórmula cargada, cambiar el costo también afecta el
+    // margen y la financiación (que dependen de costo + precio actual).
+    actualizarMargen(fila);
+}
+
+function actualizarMargen(fila) {
+    const costo = costoBase(fila);
+    const precio = parseFloat(fila.querySelector('.input-precio').value) || 0;
+    const span = fila.querySelector('.span-margen');
+    if (costo > 0) {
+        const margen = ((precio - costo) / costo) * 100;
+        span.textContent = margen.toFixed(1) + '%';
+        span.classList.toggle('bg-danger', margen < 0);
+        span.classList.toggle('bg-success', margen >= 100);
+        span.classList.toggle('bg-secondary', margen >= 0 && margen < 100);
+    } else {
+        span.textContent = '—';
+        span.className = 'badge bg-secondary span-margen';
+    }
+    actualizarDiferencia(fila);
+}
+
+function actualizarDiferencia(fila) {
+    const precioActual = parseFloat(fila.dataset.precioActual) || 0;
+    const precioNuevo = parseFloat(fila.querySelector('.input-precio').value) || 0;
+    const span = fila.querySelector('.span-diferencia');
+    const diferencia = precioNuevo - precioActual;
+
+    if (Math.abs(diferencia) < 0.005) {
+        span.textContent = 'sin cambio';
+        span.className = 'span-diferencia text-muted';
+    } else {
+        const pct = precioActual > 0 ? (diferencia / precioActual) * 100 : null;
+        const signo = diferencia > 0 ? '+' : '';
+        span.textContent = `${signo}$${diferencia.toFixed(2)}` + (pct !== null ? ` (${signo}${pct.toFixed(1)}%)` : '');
+        span.className = 'span-diferencia fw-bold ' + (diferencia > 0 ? 'text-success' : 'text-danger');
+    }
+    actualizarEfecto(fila);
+}
+
+// Precio que efectivamente le queda al cliente después de la promoción
+// (descuento al cliente), en función del precio de lista.
+function precioAlCliente(fila, precioLista) {
+    const tipo = fila.dataset.promoTipo;
+    const valor = parseFloat(fila.dataset.promoValor) || 0;
+    if (tipo === 'PCT') return precioLista * (1 - valor / 100);
+    if (tipo === 'FIJ') return Math.max(precioLista - valor, 0);
+    return precioLista;
+}
+
+// Muestra cómo "fluctúa" el margen real de un producto por las promos
+// (descuento al cliente) y la financiación (costo que absorbe el comercio),
+// acumulando ambas, y sugiere a cuánto subir el precio para seguir ganando
+// lo mismo que hoy (preservar el margen actual del producto).
+function actualizarEfecto(fila) {
+    const span = fila.querySelector('.span-efecto');
+    if (!span) return;
+
+    const financPct = parseFloat(fila.dataset.financPct) || 0;
+    const financFactor = 1 - financPct / 100;
+    const tiene2x1 = fila.dataset.tiene2x1 === '1';
+    const hayPromo = fila.dataset.promoTipo === 'PCT' || fila.dataset.promoTipo === 'FIJ' || tiene2x1;
+    if (financPct === 0 && !hayPromo) { span.innerHTML = ''; return; }
+
+    const costo = costoBase(fila);
+    const precio = parseFloat(fila.querySelector('.input-precio').value) || 0;
+    const neto = precioAlCliente(fila, precio) * financFactor;
+    const margenReal = costo > 0 ? ((neto - costo) / costo) * 100 : null;
+
+    let html = `Te queda en mano <strong>$${neto.toFixed(2)}</strong>`;
+    if (margenReal !== null) {
+        const cls = margenReal < 0 ? 'text-danger' : (margenReal >= 100 ? 'text-success' : '');
+        html += ` · margen real <strong class="${cls}">${margenReal.toFixed(1)}%</strong>`;
+    }
+    if (tiene2x1) html += `<br><span class="text-info-emphasis">⚠️ Además tiene 2x1: el margen real baja más según la cantidad.</span>`;
+
+    // Precio sugerido: subir el precio de lista para que, después de la
+    // promo + financiación, siga entrando lo mismo que hoy (el precio actual).
+    // Se calcula contra el precio actual guardado (no el que se está
+    // editando), así la sugerencia es estable y no se "persigue" a sí misma.
+    const target = parseFloat(fila.dataset.precioActual) || 0;
+    const valorFij = parseFloat(fila.dataset.promoValor) || 0;
+    let sugerido = null;
+    if (financFactor > 0 && target > 0) {
+        if (fila.dataset.promoTipo === 'PCT') {
+            sugerido = target / ((1 - valorFij / 100) * financFactor);
+        } else if (fila.dataset.promoTipo === 'FIJ') {
+            sugerido = target / financFactor + valorFij;
+        } else {
+            sugerido = target / financFactor;
+        }
+    }
+    if (sugerido !== null && sugerido - target > 0.5) {
+        html += `<br>💡 Subí a <strong>$${sugerido.toFixed(2)}</strong> (+$${(sugerido - target).toFixed(2)}) para seguir ganando lo mismo `
+            + `<button type="button" class="btn btn-sm btn-outline-primary py-0 btn-aplicar-efecto" data-sugerido="${sugerido.toFixed(2)}">Aplicar</button>`;
+    }
+    span.innerHTML = html;
+}
+
+// Botón "Aplicar" del efecto: carga el precio sugerido en el input para que
+// se revise antes de guardar (nunca cambia nada solo). Es delegado porque el
+// botón se recrea en cada render del innerHTML de la celda.
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-aplicar-efecto');
+    if (!btn) return;
+    const fila = btn.closest('.fila-precio');
+    fila.querySelector('.input-precio').value = btn.dataset.sugerido;
+    actualizarMargen(fila);
+});
+
+document.querySelectorAll('.fila-precio').forEach(fila => {
+    fila.querySelector('.input-costo').addEventListener('input', () => recalcularFila(fila));
+    fila.querySelector('.select-operador').addEventListener('change', () => recalcularFila(fila));
+    fila.querySelector('.input-formula-valor').addEventListener('input', () => recalcularFila(fila));
+    fila.querySelector('.input-precio').addEventListener('input', () => actualizarMargen(fila));
+    actualizarDiferencia(fila);
+    costoBase(fila); // muestra la notita "sin costo" desde el arranque si corresponde
+    actualizarEfecto(fila);
+});
+
+const btnAplicarTodos = document.getElementById('btn-aplicar-todos');
+if (btnAplicarTodos) {
+    btnAplicarTodos.addEventListener('click', () => {
+        const operador = document.getElementById('bulk-operador').value;
+        const valor = document.getElementById('bulk-valor').value;
+        if (valor === '') return;
+        document.querySelectorAll('.fila-precio').forEach(fila => {
+            fila.querySelector('.select-operador').value = operador;
+            fila.querySelector('.input-formula-valor').value = valor;
+            recalcularFila(fila);
+        });
+    });
+}
+
+const csrftoken = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
+document.querySelectorAll('.btn-guardar-fila').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const fila = btn.closest('.fila-precio');
+        const pk = fila.dataset.pk;
+        const body = new URLSearchParams({
+            [`costo_${pk}`]: fila.querySelector('.input-costo').value,
+            [`precio_${pk}`]: fila.querySelector('.input-precio').value,
+        });
+        btn.disabled = true;
+        fetch("{% url 'inventory:lista_precios_guardar' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body,
+        })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                if (!data.ok || !data.actualizados) return;
+                // El precio recién guardado pasa a ser el nuevo "precio actual"
+                // de referencia para la diferencia de esta fila.
+                fila.dataset.precioActual = fila.querySelector('.input-precio').value;
+                actualizarDiferencia(fila);
+                const spanActualizado = fila.querySelector('.span-actualizado');
+                spanActualizado.textContent = 'ahora mismo';
+                spanActualizado.className = 'small span-actualizado text-success fw-bold';
+                btn.textContent = '✅';
+                setTimeout(() => { btn.textContent = '💾'; }, 1500);
+            })
+            .catch(() => { btn.disabled = false; });
+    });
+});
+</script>
+{% endblock %}

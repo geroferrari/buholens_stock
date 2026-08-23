@@ -1,0 +1,322 @@
+<div class="card shadow-sm" data-hay-items-con-receta="{% if hay_items_con_receta %}1{% else %}0{% endif %}">
+    <div class="card-header bg-light fw-bold">🛒 Carrito</div>
+    <div class="card-body">
+        {% if error %}
+        <div class="alert alert-danger py-2">
+            {{ error }}
+            {% if stock_insuficiente and es_admin %}
+            <div class="mt-2">
+                <button type="button" class="btn btn-sm btn-outline-danger" id="btn-forzar-stock"
+                    data-tipo="{{ stock_insuficiente.tipo }}"
+                    data-codigo="{{ stock_insuficiente.codigo|default_if_none:'' }}"
+                    data-producto-id="{{ stock_insuficiente.producto_id|default_if_none:'' }}"
+                    data-cantidad="{{ stock_insuficiente.cantidad|default_if_none:1 }}">
+                    ⚠️ Forzar venta y ajustar stock
+                </button>
+                <div class="form-text">Solo si estás seguro/a de que el producto está físicamente disponible: se registra un ajuste de stock y se agrega igual a la venta, para revisar el conteo después.</div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if venta.estado == "DONE" %}
+        <div class="alert alert-success">Venta confirmada. Stock actualizado.</div>
+        {% endif %}
+
+        <!-- Paso 4: productos cargados (con precio editable) -->
+        <div class="wizard-step" data-step="4">
+            {% if venta.items.all %}
+            <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cant.</th>
+                        <th>Precio</th>
+                        <th>Subtotal</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in venta.items.all %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                {% if item.producto.foto %}<img src="{{ item.producto.foto.url }}" alt="" style="width:36px;height:36px;object-fit:cover;border-radius:4px;">{% endif %}
+                                {{ item.producto }}
+                            </div>
+                        </td>
+                        <td>{{ item.cantidad }}</td>
+                        <td>
+                            {% if venta.estado == "OPEN" %}
+                            <div class="input-group input-group-sm" style="max-width:140px;">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control input-precio-item" data-item-id="{{ item.id }}" step="0.01" min="0" value="{{ item.precio_unitario }}">
+                            </div>
+                            {% else %}
+                            ${{ item.precio_unitario }}
+                            {% endif %}
+                        </td>
+                        <td>${{ item.subtotal }}</td>
+                        <td>
+                            {% if venta.estado == "OPEN" %}
+                            <button type="button" class="btn btn-sm btn-outline-danger btn-quitar-item" data-item-id="{{ item.id }}">✕</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}
+            <p class="text-muted">Todavía no cargaste ningún producto. Usá el buscador de arriba.</p>
+            {% endif %}
+        </div>
+
+        <!-- Paso 5: receta/armazón por cristal (se salta si no hay items que usen receta) -->
+        <div class="wizard-step" data-step="5">
+            {% if hay_items_con_receta %}
+            <p class="text-muted small">Para cada cristal, elegí la receta a usar (por defecto, la asociada en el paso anterior) y en qué armazón se monta.</p>
+            <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Cristal</th><th>Receta</th><th>Armazón</th><th></th></tr></thead>
+                <tbody>
+                    {% for item in venta.items.all %}
+                    {% if item.producto.categoria.usa_receta %}
+                    <tr>
+                        <td>{{ item.producto }}</td>
+                        <td>
+                            <div class="receta-cell d-flex gap-1 align-items-center">
+                                <select class="form-select form-select-sm select-receta" data-item-id="{{ item.id }}" data-selected="{{ item.receta_id|default_if_none:'' }}" {% if venta.estado != "OPEN" %}disabled{% endif %}>
+                                    <option value="">— elegir receta —</option>
+                                </select>
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-ver-receta" title="Ver receta" {% if not item.receta_id %}disabled{% endif %}>👁</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary btn-orden-laboratorio" data-item-id="{{ item.id }}" title="Generar e imprimir orden de laboratorio" {% if not item.receta_id %}disabled{% endif %}>🧾</button>
+                            </div>
+                            {% if venta.estado == "OPEN" %}
+                            <a href="#" class="small text-decoration-none btn-buscar-receta-otro-cliente" data-item-id="{{ item.id }}">🔍 buscar receta de otro cliente</a>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm select-armazon" data-item-id="{{ item.id }}" data-selected="{% if item.armazon_de_cliente %}cliente{% else %}{{ item.armazon_venta_item_id|default_if_none:'' }}{% endif %}" {% if venta.estado != "OPEN" %}disabled{% endif %}>
+                                <option value="">— sin armazón asociado —</option>
+                                <option value="cliente">🙋 Armazón del cliente (trae el suyo)</option>
+                            </select>
+                        </td>
+                        <td></td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}
+            <p class="text-muted">Esta venta no tiene cristales: no hace falta asociar receta. Podés avanzar.</p>
+            {% endif %}
+        </div>
+
+        <!-- Paso 6: entrega -->
+        <div class="wizard-step" data-step="6">
+            <p class="text-muted small">Destildá lo que todavía no se entrega hoy (ej: un cristal a medida que queda en el laboratorio). Un cristal y el armazón donde se monta se entregan siempre juntos.</p>
+            <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Producto</th><th>¿Se entrega ahora?</th></tr></thead>
+                <tbody>
+                    {% for item in venta.items.all %}
+                    {% if not item.armazon_venta_item_id %}
+                    <tr>
+                        <td>
+                            {{ item.producto }}{% if item.cantidad > 1 %} (x{{ item.cantidad }}){% endif %}
+                            {% if item.cristales_asociados.all %}
+                            <div class="small text-muted">+ {% for c in item.cristales_asociados.all %}{{ c.producto }}{% if not forloop.last %}, {% endif %}{% endfor %} (se entregan juntos)</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="form-check form-switch mb-0">
+                                <input type="checkbox" role="switch" class="form-check-input chk-item-entregado" data-item-id="{{ item.id }}"
+                                    {% if item.entregado %}checked{% endif %} {% if venta.estado != "OPEN" %}disabled{% endif %} style="width: 2.5em; height: 1.4em;">
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+
+        <!-- Paso 7: obra social -->
+        <div class="wizard-step" data-step="7">
+            <div class="form-check form-switch">
+                <input type="checkbox" role="switch" class="form-check-input" id="chk-obra-social"
+                    {% if venta.es_obra_social %}checked{% endif %} {% if venta.estado != "OPEN" %}disabled{% endif %}>
+                <label class="form-check-label fw-bold" for="chk-obra-social">🏥 ¿Es por obra social?</label>
+            </div>
+            {% if venta.es_obra_social %}
+            <div class="mt-2">
+                <label class="form-label small mb-1">Obra social</label>
+                <select id="select-obra-social" class="form-select form-select-sm" data-searchable="1" {% if venta.estado != "OPEN" %}disabled{% endif %}>
+                    <option value="">— elegir obra social —</option>
+                    {% for os in obras_sociales %}
+                    <option value="{{ os.id }}" {% if venta.obra_social_id == os.id %}selected{% endif %}>{{ os.nombre }}</option>
+                    {% endfor %}
+                </select>
+                {% if not obras_sociales %}
+                <div class="form-text text-warning">No hay obras sociales cargadas. Cargalas en Gestión → Obras sociales.</div>
+                {% endif %}
+            </div>
+            <div class="form-text">El cliente puede abonar una parte ahora (o nada). Al confirmar, la venta queda en "Ventas por obra social" para revisar y terminar a mano.</div>
+            {% endif %}
+        </div>
+
+        <!-- Paso 8: forma de pago -->
+        <div class="wizard-step" data-step="8">
+            <label class="form-label fw-bold">💳 Forma de pago</label>
+            {% if not venta.forma_pago and not venta.es_obra_social and venta.estado == "OPEN" %}
+            <div class="alert alert-warning py-2 mb-2 small">⚠️ Elegí cómo paga el cliente antes de confirmar la venta.</div>
+            {% endif %}
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <select id="select-forma-pago" class="form-select" {% if venta.estado != "OPEN" %}disabled{% endif %}>
+                        <option value="">— elegir —</option>
+                        {% for value, label in forma_pago_choices %}
+                        <option value="{{ value }}" {% if venta.forma_pago == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6" id="col-cuotas" style="{% if venta.forma_pago != 'TAR' %}display:none;{% endif %}">
+                    <input type="number" id="input-cuotas" class="form-control" min="1" placeholder="Cantidad de cuotas" value="{{ venta.cuotas|default_if_none:'' }}" {% if venta.estado != "OPEN" %}disabled{% endif %}>
+                </div>
+            </div>
+            {% if venta.forma_pago_saldo %}
+            <div class="form-text">Saldo pagado con: <strong>{{ venta.get_forma_pago_saldo_display }}{% if venta.cuotas_saldo %} ({{ venta.cuotas_saldo }} cuotas){% endif %}</strong></div>
+            {% endif %}
+        </div>
+
+        <!-- Paso 9: promociones -->
+        <div class="wizard-step" data-step="9">
+            <p class="fw-bold mb-2">🏷️ Promociones por producto</p>
+            {% if venta.items.all %}
+            <div class="table-responsive mb-3">
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Producto</th><th>Precio</th><th>Promoción</th><th>Subtotal</th></tr></thead>
+                <tbody>
+                    {% for item in venta.items.all %}
+                    <tr>
+                        <td>{{ item.producto }}</td>
+                        <td>
+                            {% if item.promocion and item.precio_unitario < item.producto.precio %}
+                            <span class="text-muted text-decoration-line-through small">${{ item.producto.precio }}</span><br>
+                            <span class="text-success fw-bold">${{ item.precio_unitario }}</span>
+                            {% else %}
+                            ${{ item.precio_unitario }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if promociones_disponibles %}
+                            <select class="form-select form-select-sm select-promocion-item" data-item-id="{{ item.id }}" {% if venta.estado != "OPEN" %}disabled{% endif %}>
+                                <option value="">— sin promoción —</option>
+                                {% for p in promociones_disponibles %}
+                                <option value="{{ p.id }}" {% if item.promocion_id == p.id %}selected{% endif %}>{{ p.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <span class="text-muted">— no hay promociones vigentes —</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.promocion and item.subtotal < item.subtotal_sin_promocion %}
+                            <span class="text-muted text-decoration-line-through small">${{ item.subtotal_sin_promocion }}</span><br>
+                            <span class="text-success fw-bold">${{ item.subtotal }}</span>
+                            {% else %}
+                            ${{ item.subtotal }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% endif %}
+
+            {% if venta.estado == "OPEN" %}
+            <div class="border rounded p-3">
+                <label class="form-label fw-bold mb-2">🏷️ Descuento personalizado sobre el total</label>
+
+                {% if venta.descuento_manual_tipo %}
+                <div class="alert alert-success d-flex justify-content-between align-items-center py-2 mb-3">
+                    <div>
+                        ✅ Descuento aplicado:
+                        <strong>
+                            {% if venta.descuento_manual_tipo == "PCT" %}{{ venta.descuento_manual_valor }}%{% else %}${{ venta.descuento_manual_valor }}{% endif %}
+                        </strong>
+                        <span class="text-muted text-decoration-line-through ms-2">${{ venta.subtotal }}</span>
+                        → <strong>${{ venta.total }}</strong>
+                    </div>
+                    <button type="button" id="btn-quitar-descuento" class="btn-close" aria-label="Quitar descuento"></button>
+                </div>
+                {% endif %}
+
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <select id="select-descuento-tipo" class="form-select">
+                            <option value="">— sin descuento —</option>
+                            <option value="PCT" {% if venta.descuento_manual_tipo == "PCT" %}selected{% endif %}>Porcentaje (%)</option>
+                            <option value="FIJ" {% if venta.descuento_manual_tipo == "FIJ" %}selected{% endif %}>Monto fijo ($)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="number" id="input-descuento-valor" class="form-control" step="0.01" min="0" placeholder="Valor" value="{{ venta.descuento_manual_valor|default_if_none:''|stringformat:'s' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <button type="button" id="btn-aplicar-descuento" class="btn btn-outline-primary w-100">Aplicar</button>
+                    </div>
+                </div>
+                <div class="form-text">Además del descuento por promoción de cada producto (ej: "le hago un 10% extra a este cliente").</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Paso 10: observaciones -->
+        <div class="wizard-step" data-step="10">
+            <label class="form-label fw-bold mb-1">📝 Observaciones</label>
+            <p class="text-muted small">Notas sobre esta venta puntual (ej: algo que pasó durante la atención), para que quede registrado. Es opcional.</p>
+            <textarea id="input-observaciones" class="form-control" rows="4" placeholder="Escribí acá si hay algo para dejar anotado..." {% if venta.estado != "OPEN" %}disabled{% endif %}>{{ venta.observaciones }}</textarea>
+        </div>
+
+        <!-- Paso 11: monto a abonar y confirmar -->
+        <div class="wizard-step" data-step="11">
+            {% if venta.estado == "OPEN" and venta.items.all %}
+            <div class="border rounded p-3 mb-3 bg-light-subtle">
+                <label class="form-label small mb-1">¿Cuánto abona?</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" id="input-monto-pagado" class="form-control" step="0.01" min="0" max="{{ venta.total }}"
+                        value="{% if venta.es_obra_social %}0{% else %}{{ venta.total }}{% endif %}" data-total="{{ venta.total }}">
+                    <button type="button" id="btn-paga-total" class="btn btn-outline-primary" title="Poner el total">Paga el total</button>
+                </div>
+                <div class="form-text">
+                    {% if venta.es_obra_social %}
+                    Por obra social suele abonar solo una parte (o nada): poné cuánto paga ahora y elegí la forma de pago de ese monto. El resto queda pendiente de la obra social.
+                    {% else %}
+                    Si paga todo, tocá "Paga el total". Si deja una seña, poné cuánto abona. No se puede cargar más que el total (el vuelto se maneja en efectivo).
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                <div>
+                    <div class="text-muted small text-uppercase">Total</div>
+                    {% if venta.descuento_manual_tipo %}
+                    <div class="text-muted text-decoration-line-through">${{ venta.subtotal }}</div>
+                    {% endif %}
+                    <div class="fs-2 fw-bold {% if venta.descuento_manual_tipo %}text-success{% endif %}">${{ venta.total }}</div>
+                </div>
+                {% if venta.estado == "OPEN" and venta.items.all %}
+                <button type="button" id="btn-confirmar-venta" class="btn btn-success btn-lg px-4 py-3 fw-bold">✔ Confirmar venta</button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>

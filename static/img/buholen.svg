@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="BuhoLen">
+  <!-- Búho con anteojos: marca de BuhoLen. Mismos trazos y paleta que la
+       página de presentación (assets/presentation_page). -->
+  <ellipse cx="42" cy="118" rx="20" ry="38" fill="#8a5a2b" transform="rotate(-18 42 118)"/>
+  <ellipse cx="158" cy="118" rx="20" ry="38" fill="#8a5a2b" transform="rotate(18 158 118)"/>
+  <ellipse cx="100" cy="128" rx="58" ry="54" fill="#c9491f"/>
+  <ellipse cx="100" cy="140" rx="34" ry="34" fill="#fbfaf7"/>
+  <circle cx="100" cy="76" r="55" fill="#c9491f"/>
+  <path d="M58 34 L72 8 L82 42 Z" fill="#c9491f"/>
+  <path d="M142 34 L128 8 L118 42 Z" fill="#c9491f"/>
+  <path d="M92 96 L108 96 L100 112 Z" fill="#8a5a2b"/>
+  <line x1="46" y1="70" x2="18" y2="58" stroke="#1c1b19" stroke-width="5" stroke-linecap="round"/>
+  <line x1="154" y1="70" x2="182" y2="58" stroke="#1c1b19" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="72" cy="76" r="25" fill="#fbfaf7" stroke="#1c1b19" stroke-width="5"/>
+  <circle cx="128" cy="76" r="25" fill="#fbfaf7" stroke="#1c1b19" stroke-width="5"/>
+  <rect x="97" y="72" width="6" height="8" fill="#1c1b19"/>
+  <circle cx="72" cy="76" r="8" fill="#1c1b19"/>
+  <circle cx="128" cy="76" r="8" fill="#1c1b19"/>
+</svg>

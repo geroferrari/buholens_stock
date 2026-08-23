@@ -1,0 +1,126 @@
+{% extends "crud/list.html" %}
+
+{% block extra_filters %}
+<form method="get" class="card shadow-sm mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Cliente o vendedor/a</label>
+                <input type="text" name="q" class="form-control" placeholder="{{ search_placeholder }}" value="{{ search_query }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Desde</label>
+                <input type="date" name="desde" class="form-control" value="{{ filtro.desde }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Hasta</label>
+                <input type="date" name="hasta" class="form-control" value="{{ filtro.hasta }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Estado</label>
+                <select name="estado" class="form-select">
+                    <option value="">— todos —</option>
+                    {% for value, label in estado_choices %}
+                    <option value="{{ value }}" {% if filtro.estado == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Forma de pago</label>
+                <select name="forma_pago" class="form-select">
+                    <option value="">— todas —</option>
+                    {% for value, label in forma_pago_choices %}
+                    <option value="{{ value }}" {% if filtro.forma_pago == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Monto mínimo</label>
+                <input type="number" name="monto_min" class="form-control" step="0.01" min="0" value="{{ filtro.monto_min }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Monto máximo</label>
+                <input type="number" name="monto_max" class="form-control" step="0.01" min="0" value="{{ filtro.monto_max }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+            </div>
+            <div class="col-md-2">
+                <a href="{% url 'sales:venta_lista' %}" class="btn btn-outline-secondary w-100">Limpiar</a>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block row_cells %}
+<td class="text-nowrap">{{ row.cells.0 }}</td>
+<td class="text-nowrap">{{ row.cells.1 }}</td>
+<td>{{ row.cells.2 }}</td>
+<td>{{ row.cells.3 }}</td>
+<td>
+    {% if row.obj.estado == "OPEN" %}<span class="badge bg-primary">Abierta</span>
+    {% elif row.obj.estado == "DONE" %}<span class="badge bg-success">Confirmada</span>
+    {% else %}<span class="badge bg-secondary">Anulada</span>{% endif %}
+</td>
+<td class="text-nowrap">{{ row.cells.5 }}</td>
+<td class="text-nowrap {% if row.obj.saldo_pendiente > 0 %}text-danger fw-bold{% endif %}">{{ row.cells.6 }}</td>
+<td>
+    {% if row.obj.entregado %}<span class="badge bg-success">Sí</span>
+    {% else %}<span class="badge bg-warning text-dark">Pendiente</span>{% endif %}
+</td>
+<td class="small">{{ row.cells.8 }}</td>
+<td>
+    {% if row.obj.tiene_incidencias or row.obj.observaciones %}
+    <button type="button" class="btn btn-sm btn-outline-warning btn-ver-incidencias"
+        data-venta="#{{ row.obj.pk }}"
+        data-incidencias="{{ row.obj.incidencias_detalle }}"
+        data-observaciones="{{ row.obj.observaciones }}">
+        ⚠️ Ver
+    </button>
+    {% else %}<span class="text-muted">—</span>{% endif %}
+</td>
+{% endblock %}
+
+{% block extra_row_actions %}
+{% for item in row.obj.items.all %}
+{% for orden in item.orden_laboratorio.all %}
+<a href="{% url 'prescriptions:orden_laboratorio_imprimir' orden.pk %}" target="_blank" class="btn btn-sm btn-outline-primary" title="Imprimir orden de laboratorio #{{ orden.pk }}">🧾</a>
+{% endfor %}
+{% endfor %}
+{% endblock %}
+
+{% block extra_content %}
+<div class="modal fade" id="modal-incidencias" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modal-incidencias-titulo">Incidencias y observaciones</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modal-incidencias-body"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const modalIncidenciasEl = document.getElementById('modal-incidencias');
+const modalIncidencias = new bootstrap.Modal(modalIncidenciasEl);
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-ver-incidencias');
+    if (!btn) return;
+    document.getElementById('modal-incidencias-titulo').textContent = `Venta ${btn.dataset.venta}`;
+    const secciones = [];
+    if (btn.dataset.incidencias) {
+        secciones.push(`<p class="mb-1"><strong>⚠️ Incidencias</strong></p><p style="white-space:pre-wrap;">${btn.dataset.incidencias}</p>`);
+    }
+    if (btn.dataset.observaciones) {
+        secciones.push(`<p class="mb-1"><strong>📝 Observaciones</strong></p><p style="white-space:pre-wrap;">${btn.dataset.observaciones}</p>`);
+    }
+    document.getElementById('modal-incidencias-body').innerHTML = secciones.join('<hr>');
+    modalIncidencias.show();
+});
+</script>
+{% endblock %}

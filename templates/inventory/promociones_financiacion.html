@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Promociones y financiación{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h3 class="mb-0">🏷️ Promociones y financiación</h3>
+    <a href="{% url 'inventory:banco_lista' %}" class="btn btn-outline-secondary btn-sm">Bancos</a>
+</div>
+
+{% if messages %}
+{% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-2 mt-4">
+    <h5 class="mb-0">🏷️ Promociones <span class="text-muted small">— descuentos al cliente sobre el precio de venta</span></h5>
+    <a href="{% url 'inventory:promocion_nueva' %}" class="btn btn-primary btn-sm">+ Nueva promoción</a>
+</div>
+<div class="card shadow-sm mb-4">
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr><th>Nombre</th><th>Descuento</th><th>Vigencia</th><th>Activa</th><th>Vigente ahora</th><th class="text-end">Acciones</th></tr>
+            </thead>
+            <tbody>
+                {% for p in promociones %}
+                <tr>
+                    <td>{{ p.nombre }}</td>
+                    <td>{% if p.tipo_descuento == "PCT" %}{{ p.valor }}%{% else %}${{ p.valor }}{% endif %}</td>
+                    <td>{{ p.fecha_inicio }} → {{ p.fecha_fin|default:"sin fin" }}</td>
+                    <td>{% if p.activa %}Sí{% else %}No{% endif %}</td>
+                    <td>{% if p.esta_vigente %}<span class="badge bg-success">Sí</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
+                    <td class="text-end text-nowrap">
+                        <a href="{% url 'inventory:promocion_editar' p.pk %}" class="btn btn-sm btn-outline-secondary">Editar</a>
+                        <a href="{% url 'inventory:promocion_eliminar' p.pk %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No hay promociones cargadas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="mb-0">💳 Financiación <span class="text-muted small">— costo de las promos de cuotas que absorbe el comercio</span></h5>
+    <a href="{% url 'inventory:plan_financiacion_nuevo' %}" class="btn btn-primary btn-sm">+ Nuevo plan</a>
+</div>
+<div class="card shadow-sm mb-4">
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr><th>Banco</th><th>Plan</th><th>Cuotas</th><th>Costo financiero</th><th>Vigencia</th><th>Activo</th><th>Vigente ahora</th><th class="text-end">Acciones</th></tr>
+            </thead>
+            <tbody>
+                {% for plan in planes %}
+                <tr>
+                    <td>{{ plan.banco.nombre }}</td>
+                    <td>{{ plan.nombre }}</td>
+                    <td>{{ plan.cuotas|default:"—" }}</td>
+                    <td>{{ plan.costo_financiero_pct }}%</td>
+                    <td>{{ plan.vigencia_desde|default:"sin inicio" }} → {{ plan.vigencia_hasta|default:"sin fin" }}</td>
+                    <td>{% if plan.activo %}Sí{% else %}No{% endif %}</td>
+                    <td>{% if plan.esta_vigente %}<span class="badge bg-success">Sí</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
+                    <td class="text-end text-nowrap">
+                        <a href="{% url 'inventory:plan_financiacion_editar' plan.pk %}" class="btn btn-sm btn-outline-secondary">Editar</a>
+                        <a href="{% url 'inventory:plan_financiacion_eliminar' plan.pk %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="text-center text-muted py-4">No hay planes de financiación cargados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

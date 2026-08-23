@@ -1,0 +1,24 @@
+{% if error %}
+<div class="alert alert-danger">
+    {{ error }}
+    {% if codigo_no_encontrado %}
+    <div class="mt-2">
+        <a href="{% url 'inventory:producto_nuevo' %}?codigo_barras={{ codigo_no_encontrado|urlencode }}" class="btn btn-sm btn-primary">+ Cargar como producto nuevo</a>
+    </div>
+    {% endif %}
+</div>
+{% elif deshecho %}
+<div class="alert alert-warning">
+    Se deshizo el ingreso: se restaron <strong>{{ cantidad }}</strong> unidades de <strong>{{ producto }}</strong>.
+    Stock actual: <strong>{{ producto.stock_actual }}</strong>.
+</div>
+{% else %}
+<div class="alert alert-success">
+    Se sumaron <strong>{{ cantidad }}</strong> unidades a <strong>{{ producto }}</strong>.
+    Stock actual: <strong>{{ producto.stock_actual }}</strong>.
+    <a href="{% url 'inventory:etiquetas' %}?ids={{ producto.id }}" target="_blank" class="btn btn-sm btn-outline-dark ms-2">🖨️ Imprimir etiqueta</a>
+    {% if movimiento_id %}
+    <button type="button" class="btn btn-sm btn-outline-danger ms-2 btn-deshacer-ingreso" data-movimiento-id="{{ movimiento_id }}">↩️ Deshacer (escaneé sin querer)</button>
+    {% endif %}
+</div>
+{% endif %}

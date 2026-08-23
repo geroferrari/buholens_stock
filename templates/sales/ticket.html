@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Ticket venta #{{ venta.id }}</title>
+<style>
+    body { font-family: 'Courier New', Courier, monospace; width: 300px; margin: 0 auto; padding: 12px; font-size: 13px; color: #000; background: #fff; }
+    .center { text-align: center; }
+    .linea { border-top: 1px dashed #000; margin: 8px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 2px 0; vertical-align: top; }
+    .totales td { font-weight: bold; font-size: 15px; }
+    .toolbar { text-align: center; margin-bottom: 16px; }
+    .toolbar button { font-size: 1rem; padding: 8px 16px; }
+
+    @media print {
+        .toolbar { display: none; }
+        body { width: auto; margin: 0; padding: 0; }
+        @page { margin: 4mm; }
+    }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+    <button onclick="window.print()">🖨️ Imprimir ticket</button>
+</div>
+
+<div class="center">
+    <strong>{{ optica.nombre|upper }}</strong><br>
+    {% for dato in optica.datos_contacto %}{{ dato }}<br>{% endfor %}
+    Venta #{{ venta.id }}<br>
+    {{ venta.fecha|date:"d/m/Y H:i" }}
+</div>
+<div class="linea"></div>
+<div>
+    Cliente: {{ venta.cliente|default:"Consumidor final" }}<br>
+    Atendió: {{ venta.vendedor.nombre|default:"—" }}
+</div>
+<div class="linea"></div>
+<table>
+    {% for item in venta.items.all %}
+    <tr><td colspan="2">{{ item.producto }}</td></tr>
+    <tr>
+        <td>{{ item.cantidad }} x ${{ item.precio_unitario }}</td>
+        <td style="text-align:right;">${{ item.subtotal }}</td>
+    </tr>
+    {% endfor %}
+</table>
+<div class="linea"></div>
+<table class="totales">
+    <tr><td>TOTAL</td><td style="text-align:right;">${{ venta.total }}</td></tr>
+    {% if venta.saldo_pendiente > 0 %}
+    <tr><td>PAGÓ</td><td style="text-align:right;">${{ venta.monto_pagado }}</td></tr>
+    <tr><td>SALDO PENDIENTE</td><td style="text-align:right;">${{ venta.saldo_pendiente }}</td></tr>
+    {% endif %}
+</table>
+{% if venta.forma_pago %}
+<div>Pago: {{ venta.get_forma_pago_display }}{% if venta.cuotas %} ({{ venta.cuotas }} cuota{{ venta.cuotas|pluralize }}){% endif %}</div>
+{% endif %}
+{% if venta.saldo_pendiente > 0 %}
+<div class="linea"></div>
+<div class="center"><strong>⚠ QUEDA UN SALDO PENDIENTE DE ${{ venta.saldo_pendiente }}</strong></div>
+{% endif %}
+<div class="linea"></div>
+{% if optica.mensaje_ticket %}<div class="center">{{ optica.mensaje_ticket }}</div>{% endif %}
+
+</body>
+</html>

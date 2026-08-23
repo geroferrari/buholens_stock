@@ -1,0 +1,673 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Estadísticas{% endblock %}
+{% block content %}
+
+<h3 class="mb-3">📊 Estadísticas</h3>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light fw-bold">🗂️ Historial</div>
+    <div class="card-body d-flex flex-wrap gap-2">
+        <a href="{% url 'inventory:movimiento_lista' %}" class="btn btn-outline-secondary btn-sm">Ingresos de stock</a>
+        <a href="{% url 'sales:venta_lista' %}" class="btn btn-outline-secondary btn-sm">Ventas</a>
+        <a href="{% url 'prescriptions:receta_lista' %}" class="btn btn-outline-secondary btn-sm">Recetas</a>
+        <a href="{% url 'customers:cliente_lista' %}" class="btn btn-outline-secondary btn-sm">Altas de clientes</a>
+        <a href="{% url 'sales:devolucion_lista' %}" class="btn btn-outline-secondary btn-sm">Devoluciones</a>
+        <a href="{% url 'prescriptions:receta_historial' %}" class="btn btn-outline-secondary btn-sm">Historial de carga de recetas</a>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-4" id="statsTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-btn-ventas" data-bs-toggle="tab" data-bs-target="#tab-ventas" type="button" role="tab">💰 Ventas</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-btn-stock" data-bs-toggle="tab" data-bs-target="#tab-stock" type="button" role="tab">📦 Stock</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-btn-clientes" data-bs-toggle="tab" data-bs-target="#tab-clientes" type="button" role="tab">🧾 Clientes y recetas</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-btn-lc" data-bs-toggle="tab" data-bs-target="#tab-lc" type="button" role="tab">👁️ Lentes de contacto</button>
+    </li>
+</ul>
+
+<div class="tab-content">
+
+<!-- ===================== VENTAS ===================== -->
+<div class="tab-pane fade show active" id="tab-ventas" role="tabpanel">
+
+    <form method="get" class="row g-2 align-items-end mb-4">
+        <div class="col-auto">
+            <label class="form-label small mb-0">Desde</label>
+            <input type="date" name="desde" value="{{ desde }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-auto">
+            <label class="form-label small mb-0">Hasta</label>
+            <input type="date" name="hasta" value="{{ hasta }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary btn-sm">Filtrar</button>
+        </div>
+    </form>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm"><div class="card-body">
+                <div class="text-muted small">Total facturado</div>
+                <div class="fs-3 fw-bold">${{ total_facturado }}</div>
+            </div></div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm"><div class="card-body">
+                <div class="text-muted small">Cantidad de ventas</div>
+                <div class="fs-3 fw-bold">{{ cantidad_ventas }}</div>
+            </div></div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm"><div class="card-body">
+                <div class="text-muted small">Ticket promedio</div>
+                <div class="fs-3 fw-bold">${{ ticket_promedio }}</div>
+            </div></div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm {% if cantidad_incidencias %}border-warning{% endif %}"><div class="card-body">
+                <div class="text-muted small">⚠️ Ventas con incidencias</div>
+                <div class="fs-3 fw-bold {% if cantidad_incidencias %}text-warning{% endif %}">{{ cantidad_incidencias }}</div>
+                {% if cantidad_incidencias %}
+                <a href="{% url 'sales:venta_lista' %}?incidencias=1" class="small">Revisar →</a>
+                {% endif %}
+            </div></div>
+        </div>
+    </div>
+
+    {% if cantidad_ventas == 0 %}
+    <div class="alert alert-info">No hay ventas confirmadas en este período.</div>
+    {% else %}
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Ventas por vendedor/a</h6>
+                <canvas id="chart-vendedores" height="220"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Facturación por día</h6>
+                <canvas id="chart-dias" height="220"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Productos más vendidos (unidades)</h6>
+                <canvas id="chart-productos" height="260"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Marcas más vendidas (unidades)</h6>
+                <canvas id="chart-marcas" height="260"></canvas>
+            </div></div>
+        </div>
+    </div>
+
+    {% endif %}
+</div>
+
+<!-- ===================== STOCK ===================== -->
+<div class="tab-pane fade" id="tab-stock" role="tabpanel">
+
+    {% if cantidad_bajo_minimo %}
+    <div class="alert alert-warning">⚠️ Hay <strong>{{ cantidad_bajo_minimo }}</strong> producto(s) en o por debajo del stock mínimo.</div>
+    {% endif %}
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Stock actual por marca</h6>
+                <canvas id="chart-stock-marca" height="260"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Cantidad de productos por proveedor (menor a mayor)</h6>
+                <canvas id="chart-prov-cantidad" height="260"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Stock actual por categoría</h6>
+                <canvas id="chart-stock-categoria" height="260"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Productos con stock en/por debajo del mínimo</h6>
+                <canvas id="chart-bajo-minimo" height="260"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Valor de inventario por categoría (a costo)</h6>
+                <canvas id="chart-valor-categoria" height="260"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Unidades pendientes de recibir por proveedor</h6>
+                <canvas id="chart-ordenes-pendientes" height="260"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Rotación: stock vs. vendido en el período (mayor stock, menor venta primero)</h6>
+                <canvas id="chart-rotacion" height="260"></canvas>
+            </div></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== CLIENTES Y RECETAS ===================== -->
+<div class="tab-pane fade" id="tab-clientes" role="tabpanel">
+
+    <form method="get" class="row g-2 align-items-end mb-2">
+        <input type="hidden" name="tab" value="clientes">
+        <div class="col-auto">
+            <label class="form-label small mb-0">Recetas — Desde</label>
+            <input type="date" name="rdesde" value="{{ rdesde }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-auto">
+            <label class="form-label small mb-0">Hasta</label>
+            <input type="date" name="rhasta" value="{{ rhasta }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary btn-sm">Filtrar</button>
+        </div>
+    </form>
+    <p class="text-muted small mb-4">Todos los gráficos de recetas son del período elegido. Total en el período: <strong>{{ total_recetas_periodo }}</strong> receta(s).</p>
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Recetas en el período</h6>
+                <canvas id="chart-recetas-mes" height="260"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>¿Para lentes de contacto?</h6>
+                <canvas id="chart-lentes-contacto" height="260"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Marca de lentes de contacto</h6>
+                <canvas id="chart-marca-lc" height="260"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Recetas por obra social</h6>
+                <canvas id="chart-obra-social" height="260"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Altas de clientes por mes</h6>
+                <canvas id="chart-clientes-mes" height="260"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Recetas por médico</h6>
+                <canvas id="chart-medico" height="260"></canvas>
+            </div></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== LENTES DE CONTACTO ===================== -->
+<div class="tab-pane fade" id="tab-lc" role="tabpanel">
+
+    <form method="get" class="row g-2 align-items-end mb-4">
+        <input type="hidden" name="tab" value="lc">
+        <div class="col-auto">
+            <label class="form-label small mb-0">Desde</label>
+            <input type="date" name="lcdesde" value="{{ lcdesde }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-auto">
+            <label class="form-label small mb-0">Hasta</label>
+            <input type="date" name="lchasta" value="{{ lchasta }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary btn-sm">Filtrar</button>
+        </div>
+    </form>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm"><div class="card-body">
+                <div class="text-muted small">Pruebas agendadas</div>
+                <div class="fs-3 fw-bold">{{ total_pruebas_lc }}</div>
+            </div></div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm"><div class="card-body">
+                <div class="text-muted small">Terminaron en venta</div>
+                <div class="fs-3 fw-bold">{{ pruebas_con_venta_lc }}</div>
+            </div></div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm"><div class="card-body">
+                <div class="text-muted small">Tasa de conversión</div>
+                <div class="fs-3 fw-bold">{{ tasa_conversion_lc }}%</div>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Lentes de contacto más vendidos (unidades)</h6>
+                <canvas id="chart-top-lc" height="260"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Pruebas por estado</h6>
+                <canvas id="chart-estado-lc" height="260"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Pruebas por vendedor/a</h6>
+                <canvas id="chart-vendedor-lc" height="260"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Pruebas por mes (total vs. terminaron en venta)</h6>
+                <canvas id="chart-mes-lc" height="260"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>¿Se vendió líquido junto con el lente? ({{ total_ventas_con_lc }} venta(s) con lentes de contacto)</h6>
+                <canvas id="chart-liquido-lc" height="260"></canvas>
+            </div></div>
+        </div>
+    </div>
+
+    <h5 class="mt-4 mb-3">🔁 Recompra (histórico completo, todos los clientes)</h5>
+    <p class="text-muted small mb-3">De los clientes que alguna vez compraron lentes de contacto o líquido, ¿siguieron viniendo o fue una compra única (quizás vinieron solo a la prueba)?</p>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm"><div class="card-body">
+                <div class="text-muted small">Compraron una sola vez</div>
+                <div class="fs-3 fw-bold">{{ clientes_unica_compra_lc }}</div>
+            </div></div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm"><div class="card-body">
+                <div class="text-muted small">Volvieron a comprar (2+)</div>
+                <div class="fs-3 fw-bold">{{ clientes_recurrentes_lc }}</div>
+            </div></div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm"><div class="card-body">
+                <div class="text-muted small">Tasa de recompra</div>
+                <div class="fs-3 fw-bold">{{ tasa_recompra_lc }}%</div>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Clientes según cantidad de compras de lentes/líquido</h6>
+                <canvas id="chart-recompra-lc" height="260"></canvas>
+            </div></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Candidatos a re-contactar (una sola compra, hace más tiempo primero)</h6>
+                {% if clientes_sin_volver %}
+                <div class="table-responsive" style="max-height:260px;">
+                    <table class="table table-sm mb-0">
+                        <thead><tr><th>Cliente</th><th>Última compra</th></tr></thead>
+                        <tbody>
+                            {% for c in clientes_sin_volver %}
+                            <tr>
+                                <td><a href="{% url 'customers:cliente_detalle' c.cliente_id %}">{{ c.nombre }}</a></td>
+                                <td>{{ c.ultima_compra|date:'d/m/Y' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No hay clientes en esta situación.</p>
+                {% endif %}
+            </div></div>
+        </div>
+    </div>
+</div>
+
+</div>
+
+{{ labels_vendedores|json_script:"labels-vendedores" }}
+{{ data_vendedores|json_script:"data-vendedores" }}
+{{ labels_dias|json_script:"labels-dias" }}
+{{ data_dias|json_script:"data-dias" }}
+{{ labels_productos|json_script:"labels-productos" }}
+{{ data_productos|json_script:"data-productos" }}
+{{ labels_marcas|json_script:"labels-marcas" }}
+{{ data_marcas|json_script:"data-marcas" }}
+
+{{ labels_stock_marca|json_script:"labels-stock-marca" }}
+{{ data_stock_marca|json_script:"data-stock-marca" }}
+{{ labels_prov_cantidad|json_script:"labels-prov-cantidad" }}
+{{ data_prov_cantidad|json_script:"data-prov-cantidad" }}
+{{ labels_stock_categoria|json_script:"labels-stock-categoria" }}
+{{ data_stock_categoria|json_script:"data-stock-categoria" }}
+{{ labels_bajo_minimo|json_script:"labels-bajo-minimo" }}
+{{ data_bajo_minimo|json_script:"data-bajo-minimo" }}
+{{ labels_valor_categoria|json_script:"labels-valor-categoria" }}
+{{ data_valor_categoria|json_script:"data-valor-categoria" }}
+{{ labels_ordenes_pendientes|json_script:"labels-ordenes-pendientes" }}
+{{ data_ordenes_pendientes|json_script:"data-ordenes-pendientes" }}
+{{ labels_rotacion|json_script:"labels-rotacion" }}
+{{ data_rotacion_stock|json_script:"data-rotacion-stock" }}
+{{ data_rotacion_vendido|json_script:"data-rotacion-vendido" }}
+
+{{ labels_clientes_mes|json_script:"labels-clientes-mes" }}
+{{ data_clientes_mes|json_script:"data-clientes-mes" }}
+{{ labels_obra_social|json_script:"labels-obra-social" }}
+{{ data_obra_social|json_script:"data-obra-social" }}
+{{ labels_recetas_mes|json_script:"labels-recetas-mes" }}
+{{ data_recetas_mes|json_script:"data-recetas-mes" }}
+{{ data_lentes_contacto|json_script:"data-lentes-contacto" }}
+{{ labels_marca_lc|json_script:"labels-marca-lc" }}
+{{ data_marca_lc|json_script:"data-marca-lc" }}
+{{ labels_medico|json_script:"labels-medico" }}
+{{ data_medico|json_script:"data-medico" }}
+
+{{ labels_top_lc|json_script:"labels-top-lc" }}
+{{ data_top_lc|json_script:"data-top-lc" }}
+{{ labels_estado_lc|json_script:"labels-estado-lc" }}
+{{ data_estado_lc|json_script:"data-estado-lc" }}
+{{ labels_vendedor_lc|json_script:"labels-vendedor-lc" }}
+{{ data_vendedor_lc|json_script:"data-vendedor-lc" }}
+{{ labels_mes_lc|json_script:"labels-mes-lc" }}
+{{ data_mes_total_lc|json_script:"data-mes-total-lc" }}
+{{ data_mes_venta_lc|json_script:"data-mes-venta-lc" }}
+{{ data_liquido_lc|json_script:"data-liquido-lc" }}
+{{ labels_recompra_lc|json_script:"labels-recompra-lc" }}
+{{ data_recompra_lc|json_script:"data-recompra-lc" }}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
+<script>
+function leer(id) {
+    const el = document.getElementById(id);
+    return el ? JSON.parse(el.textContent) : [];
+}
+
+const PALETA = ['#0d6efd', '#198754', '#fd7e14', '#6f42c1', '#dc3545', '#20c997', '#ffc107', '#0dcaf0', '#6610f2', '#adb5bd'];
+
+let ventasInit = false, stockInit = false, clientesInit = false, lcInit = false;
+
+function initVentasCharts() {
+    if (ventasInit) return;
+    ventasInit = true;
+    {% if cantidad_ventas > 0 %}
+    new Chart(document.getElementById('chart-vendedores'), {
+        type: 'bar',
+        data: {
+            labels: leer('labels-vendedores'),
+            datasets: [{ label: 'Total vendido ($)', data: leer('data-vendedores'), backgroundColor: '#198754' }],
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } },
+    });
+
+    new Chart(document.getElementById('chart-dias'), {
+        type: 'line',
+        data: {
+            labels: leer('labels-dias'),
+            datasets: [{ label: 'Facturación ($)', data: leer('data-dias'), borderColor: '#0d6efd', tension: 0.2 }],
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } },
+    });
+
+    new Chart(document.getElementById('chart-productos'), {
+        type: 'bar',
+        data: {
+            labels: leer('labels-productos'),
+            datasets: [{ label: 'Unidades vendidas', data: leer('data-productos'), backgroundColor: '#fd7e14' }],
+        },
+        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } },
+    });
+
+    new Chart(document.getElementById('chart-marcas'), {
+        type: 'doughnut',
+        data: {
+            labels: leer('labels-marcas'),
+            datasets: [{ data: leer('data-marcas'), backgroundColor: PALETA }],
+        },
+        options: { responsive: true },
+    });
+    {% endif %}
+}
+
+function initStockCharts() {
+    if (stockInit) return;
+    stockInit = true;
+
+    new Chart(document.getElementById('chart-stock-marca'), {
+        type: 'doughnut',
+        data: {
+            labels: leer('labels-stock-marca'),
+            datasets: [{ data: leer('data-stock-marca'), backgroundColor: PALETA }],
+        },
+        options: { responsive: true },
+    });
+
+    new Chart(document.getElementById('chart-prov-cantidad'), {
+        type: 'bar',
+        data: {
+            labels: leer('labels-prov-cantidad'),
+            datasets: [{ label: 'Cantidad de productos', data: leer('data-prov-cantidad'), backgroundColor: '#dc3545' }],
+        },
+        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } },
+    });
+
+    new Chart(document.getElementById('chart-stock-categoria'), {
+        type: 'bar',
+        data: {
+            labels: leer('labels-stock-categoria'),
+            datasets: [{ label: 'Stock actual', data: leer('data-stock-categoria'), backgroundColor: '#0d6efd' }],
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } },
+    });
+
+    new Chart(document.getElementById('chart-bajo-minimo'), {
+        type: 'bar',
+        data: {
+            labels: leer('labels-bajo-minimo'),
+            datasets: [{ label: 'Stock actual', data: leer('data-bajo-minimo'), backgroundColor: '#ffc107' }],
+        },
+        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } },
+    });
+
+    new Chart(document.getElementById('chart-valor-categoria'), {
+        type: 'doughnut',
+        data: {
+            labels: leer('labels-valor-categoria'),
+            datasets: [{ data: leer('data-valor-categoria'), backgroundColor: PALETA }],
+        },
+        options: { responsive: true },
+    });
+
+    new Chart(document.getElementById('chart-ordenes-pendientes'), {
+        type: 'bar',
+        data: {
+            labels: leer('labels-ordenes-pendientes'),
+            datasets: [{ label: 'Unidades pendientes', data: leer('data-ordenes-pendientes'), backgroundColor: '#6f42c1' }],
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } },
+    });
+
+    new Chart(document.getElementById('chart-rotacion'), {
+        type: 'bar',
+        data: {
+            labels: leer('labels-rotacion'),
+            datasets: [
+                { label: 'Stock actual', data: leer('data-rotacion-stock'), backgroundColor: '#0d6efd' },
+                { label: 'Vendido en el período', data: leer('data-rotacion-vendido'), backgroundColor: '#dc3545' },
+            ],
+        },
+        options: { indexAxis: 'y', responsive: true },
+    });
+}
+
+function initClientesCharts() {
+    if (clientesInit) return;
+    clientesInit = true;
+
+    new Chart(document.getElementById('chart-clientes-mes'), {
+        type: 'line',
+        data: {
+            labels: leer('labels-clientes-mes'),
+            datasets: [{ label: 'Clientes nuevos', data: leer('data-clientes-mes'), borderColor: '#20c997', tension: 0.2 }],
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } },
+    });
+
+    new Chart(document.getElementById('chart-recetas-mes'), {
+        type: 'line',
+        data: {
+            labels: leer('labels-recetas-mes'),
+            datasets: [{ label: 'Recetas', data: leer('data-recetas-mes'), borderColor: '#6f42c1', tension: 0.2 }],
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } },
+    });
+
+    new Chart(document.getElementById('chart-lentes-contacto'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Lentes de contacto', 'Anteojos / otro'],
+            datasets: [{ data: leer('data-lentes-contacto'), backgroundColor: ['#0d6efd', '#adb5bd'] }],
+        },
+        options: { responsive: true },
+    });
+
+    new Chart(document.getElementById('chart-marca-lc'), {
+        type: 'bar',
+        data: {
+            labels: leer('labels-marca-lc'),
+            datasets: [{ label: 'Recetas', data: leer('data-marca-lc'), backgroundColor: '#0d6efd' }],
+        },
+        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } },
+    });
+
+    new Chart(document.getElementById('chart-obra-social'), {
+        type: 'bar',
+        data: {
+            labels: leer('labels-obra-social'),
+            datasets: [{ label: 'Recetas', data: leer('data-obra-social'), backgroundColor: '#0dcaf0' }],
+        },
+        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } },
+    });
+
+    new Chart(document.getElementById('chart-medico'), {
+        type: 'bar',
+        data: {
+            labels: leer('labels-medico'),
+            datasets: [{ label: 'Recetas', data: leer('data-medico'), backgroundColor: '#6610f2' }],
+        },
+        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } },
+    });
+}
+
+function initLcCharts() {
+    if (lcInit) return;
+    lcInit = true;
+
+    new Chart(document.getElementById('chart-top-lc'), {
+        type: 'bar',
+        data: {
+            labels: leer('labels-top-lc'),
+            datasets: [{ label: 'Unidades vendidas', data: leer('data-top-lc'), backgroundColor: '#0d6efd' }],
+        },
+        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } },
+    });
+
+    new Chart(document.getElementById('chart-estado-lc'), {
+        type: 'doughnut',
+        data: {
+            labels: leer('labels-estado-lc'),
+            datasets: [{ data: leer('data-estado-lc'), backgroundColor: PALETA }],
+        },
+        options: { responsive: true },
+    });
+
+    new Chart(document.getElementById('chart-vendedor-lc'), {
+        type: 'bar',
+        data: {
+            labels: leer('labels-vendedor-lc'),
+            datasets: [{ label: 'Pruebas', data: leer('data-vendedor-lc'), backgroundColor: '#20c997' }],
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } },
+    });
+
+    new Chart(document.getElementById('chart-mes-lc'), {
+        type: 'line',
+        data: {
+            labels: leer('labels-mes-lc'),
+            datasets: [
+                { label: 'Pruebas agendadas', data: leer('data-mes-total-lc'), borderColor: '#adb5bd', tension: 0.2 },
+                { label: 'Terminaron en venta', data: leer('data-mes-venta-lc'), borderColor: '#198754', tension: 0.2 },
+            ],
+        },
+        options: { responsive: true },
+    });
+
+    new Chart(document.getElementById('chart-liquido-lc'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Con líquido', 'Sin líquido'],
+            datasets: [{ data: leer('data-liquido-lc'), backgroundColor: ['#0d6efd', '#adb5bd'] }],
+        },
+        options: { responsive: true },
+    });
+
+    new Chart(document.getElementById('chart-recompra-lc'), {
+        type: 'bar',
+        data: {
+            labels: leer('labels-recompra-lc'),
+            datasets: [{ label: 'Clientes', data: leer('data-recompra-lc'), backgroundColor: '#6f42c1' }],
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } },
+    });
+}
+
+initVentasCharts();
+document.getElementById('tab-btn-stock').addEventListener('shown.bs.tab', initStockCharts);
+document.getElementById('tab-btn-clientes').addEventListener('shown.bs.tab', initClientesCharts);
+document.getElementById('tab-btn-lc').addEventListener('shown.bs.tab', initLcCharts);
+
+// Al filtrar por período de recetas o de lentes de contacto (el form manda
+// ?tab=clientes o ?tab=lc) la página recarga: se reabre esa pestaña en vez de
+// volver a la de Ventas.
+const tabParam = new URLSearchParams(location.search).get('tab');
+if (tabParam === 'clientes') {
+    new bootstrap.Tab(document.getElementById('tab-btn-clientes')).show();
+} else if (tabParam === 'lc') {
+    new bootstrap.Tab(document.getElementById('tab-btn-lc')).show();
+}
+</script>
+{% endblock %}

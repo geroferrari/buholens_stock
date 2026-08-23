@@ -1,0 +1,24 @@
+<div class="card shadow-sm border-success">
+    <div class="card-body">
+        <div class="alert alert-success mb-3">
+            <h4 class="mb-1">Venta #{{ venta.id }} confirmada ✅</h4>
+            <p class="mb-0">
+                Total: <strong>${{ venta.total }}</strong> · Atendió: <strong>{{ venta.vendedor.nombre }}</strong>
+                {% if venta.forma_pago %} · Pago: <strong>{{ venta.get_forma_pago_display }}{% if venta.cuotas %} ({{ venta.cuotas }} cuota{{ venta.cuotas|pluralize }}){% endif %}</strong>{% endif %}.
+                El stock ya fue descontado.
+            </p>
+            {% if venta.saldo_pendiente > 0 or not venta.entregado %}
+            <p class="mb-0 mt-2">
+                ⚠️
+                {% if venta.saldo_pendiente > 0 %}Quedó un saldo pendiente de <strong>${{ venta.saldo_pendiente }}</strong>{% endif %}
+                {% if venta.saldo_pendiente > 0 and not venta.entregado %} y{% endif %}
+                {% if not venta.entregado %} todavía falta entregar algún producto{% endif %}.
+                Buscala después en "Buscar venta pendiente" para completarla.
+            </p>
+            {% endif %}
+        </div>
+        <a href="{% url 'sales:venta_ticket' venta.id %}" target="_blank" class="btn btn-outline-dark">🧾 Imprimir ticket</a>
+        <a href="{% url 'sales:nueva_venta' %}" class="btn btn-primary">Iniciar otra venta</a>
+        <a href="{% url 'home' %}" class="btn btn-outline-secondary">Volver al inicio</a>
+    </div>
+</div>

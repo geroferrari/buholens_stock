@@ -1,0 +1,220 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{{ optica.nombre }} - Stock{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="icon" href="{% if optica.logo %}{{ optica.logo.url }}{% else %}{% static 'img/icon-192.png' %}{% endif %}">
+    {# PWA: permite "agregar a la pantalla de inicio" y recibir notificaciones push. #}
+    <link rel="manifest" href="{% url 'manifest' %}">
+    <meta name="theme-color" content="{{ optica.color_primario }}">
+    <link rel="apple-touch-icon" href="{% if optica.logo %}{{ optica.logo.url }}{% else %}{% static 'img/apple-touch-icon.png' %}{% endif %}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="{{ optica.nombre_para_icono }}">
+    <style>
+        /* Colores de marca: salen de Gestión → Configuración (un solo color; los
+           tonos de hover/activo se derivan solos). Se pisan las clases de
+           Bootstrap directamente (usamos el CSS ya compilado del CDN, no una
+           build propia de Sass) para que .btn-primary, links, badges, foco de
+           inputs, etc. usen la marca en vez del azul default de Bootstrap. */
+        :root {
+            --marca: {{ optica.color_primario }};
+            --marca-oscuro: {{ optica.color_primario_oscuro }};
+            --marca-mas-oscuro: {{ optica.color_primario_mas_oscuro }};
+            /* Neutros cálidos de BuhoLen: son del producto, no de la óptica,
+               así que no cambian con el color de marca de cada cliente.
+               A propósito NO hay blanco puro en ningún lado: es una pantalla de
+               trabajo que se mira todo el día y el blanco a full cansa la vista.
+               El papel (tarjetas, tablas) es apenas más claro que el fondo, lo
+               justo para que se despegue. */
+            --fondo: #ebe5d9;
+            --papel: #f7f4ed;
+            --fondo-alt: #efe9dd;
+            --tinta: #1c1b19;
+            --tinta-suave: #5a564d;
+            --borde: #d9d0be;
+            --radio: 10px;
+        }
+        body {
+            background: var(--fondo);
+            color: var(--tinta);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            /* Que los componentes de Bootstrap que usan el fondo del body (tablas,
+               inputs, modales) tomen el papel en vez del blanco de la librería. */
+            --bs-body-bg: var(--papel);
+            --bs-table-bg: transparent;
+        }
+        h1, h2, h3, h4, h5 { font-weight: 800; letter-spacing: -0.01em; }
+
+        /* Barra superior clara y cálida, como la marca. */
+        .navbar {
+            background: rgba(235, 229, 217, 0.92);
+            backdrop-filter: blur(6px);
+            border-bottom: 1px solid var(--borde);
+        }
+        .navbar-brand { font-weight: 800; color: var(--tinta); }
+        .navbar-brand:hover { color: var(--tinta); }
+        .navbar-logo { height: 34px; border-radius: 6px; }
+        .navbar-marca { width: 30px; height: 30px; flex-shrink: 0; }
+        #codigo-barras-input { font-size: 1.4rem; padding: 0.75rem; }
+
+        .card, .modal-content, .list-group-item, .alert, .dropdown-menu, .table-responsive {
+            border-color: var(--borde);
+        }
+        .card, .modal-content, .dropdown-menu, .list-group-item {
+            background-color: var(--papel);
+        }
+        .card { border-radius: var(--radio); }
+        .card-header { background: var(--fondo-alt); border-bottom-color: var(--borde); font-weight: 700; }
+        .table > :not(caption) > * > * { border-color: var(--borde); }
+        /* Las tablas fuera de una tarjeta necesitan su propio papel para no
+           quedar transparentes sobre el fondo. */
+        .table-responsive, table.table {
+            background-color: var(--papel);
+            border-radius: var(--radio);
+        }
+        .form-control, .form-select { background-color: var(--papel); }
+        .text-muted, .form-text { color: var(--tinta-suave) !important; }
+
+        /* Botones tipo píldora, como en la página de BuhoLen. */
+        .btn { border-radius: 999px; font-weight: 700; }
+        .badge { border-radius: 999px; }
+        .form-control, .form-select { border-color: var(--borde); border-radius: var(--radio); }
+
+        a { color: var(--marca-mas-oscuro); }
+        a:hover { color: var(--marca-oscuro); }
+
+        .btn-primary {
+            --bs-btn-bg: var(--marca);
+            --bs-btn-border-color: var(--marca);
+            --bs-btn-hover-bg: var(--marca-oscuro);
+            --bs-btn-hover-border-color: var(--marca-oscuro);
+            --bs-btn-active-bg: var(--marca-mas-oscuro);
+            --bs-btn-active-border-color: var(--marca-mas-oscuro);
+            --bs-btn-disabled-bg: var(--marca);
+            --bs-btn-disabled-border-color: var(--marca);
+        }
+        .btn-outline-primary {
+            --bs-btn-color: var(--marca-mas-oscuro);
+            --bs-btn-border-color: var(--marca);
+            --bs-btn-hover-bg: var(--marca);
+            --bs-btn-hover-border-color: var(--marca);
+            --bs-btn-active-bg: var(--marca-oscuro);
+            --bs-btn-active-border-color: var(--marca-oscuro);
+        }
+        .text-primary { color: var(--marca-mas-oscuro) !important; }
+        .bg-primary { background-color: var(--marca) !important; }
+        .badge.bg-primary { background-color: var(--marca) !important; }
+        .border-primary { border-color: var(--marca) !important; }
+        .form-check-input:checked { background-color: var(--marca); border-color: var(--marca); }
+        .form-control:focus, .form-select:focus {
+            border-color: var(--marca);
+            box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--marca) 25%, transparent);
+        }
+        .page-link { color: var(--marca-mas-oscuro); }
+        .page-item.active .page-link { background-color: var(--marca); border-color: var(--marca); }
+        .nav-tabs .nav-link.active { border-color: var(--marca); color: var(--marca-mas-oscuro); }
+        .spinner-border.text-primary { color: var(--marca) !important; }
+
+        /* En mobile, los botones de acción de la navbar ocupan todo el ancho
+           dentro del menú desplegable, más fáciles de tocar. */
+        @media (max-width: 991px) {
+            .navbar-nav .btn { width: 100%; }
+            .navbar-nav .dropdown-menu { width: 100%; }
+        }
+
+        /* Tablas anchas: scroll horizontal suave en pantallas chicas. */
+        .table-responsive { -webkit-overflow-scrolling: touch; }
+
+        /* Separación entre botones que quedan uno al lado del otro (o se
+           apilan al hacer wrap) en menús y tarjetas, para que no se toquen. */
+        .card-body .btn, .btn-group-vertical > .btn {
+            margin: 0.15rem 0.25rem 0.15rem 0;
+        }
+
+        /* Grilla de acciones de una tarjeta: botones del mismo ancho alineados
+           en filas y columnas, en vez de sueltos con márgenes (que al hacer
+           wrap quedaban escalonados y desprolijos). */
+        .acciones {
+            display: grid;
+            /* auto-fill (y no auto-fit) deja las columnas vacías en su lugar:
+               así una tarjeta con un solo botón no lo estira de lado a lado y
+               todos los botones miden lo mismo en todas las tarjetas. */
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 0.5rem;
+            margin-top: 0.25rem;
+        }
+        .acciones .btn {
+            margin: 0;
+            width: 100%;
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+            font-size: 0.94rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        /* Inputs y botones un poco más grandes en mobile para el dedo. */
+        @media (max-width: 575px) {
+            .btn { padding: 0.5rem 0.75rem; }
+            h3 { font-size: 1.4rem; }
+        }
+    </style>
+    <style>
+        /* Evita el zoom automático de iOS al enfocar inputs (font-size < 16px). */
+        @media (max-width: 575px) {
+            input, select, textarea { font-size: 16px !important; }
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg sticky-top mb-4">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="{% url 'home' %}">
+                {% if optica.logo %}
+                <img src="{{ optica.logo.url }}" alt="{{ optica.nombre }}" class="navbar-logo">
+                {% else %}
+                <img src="{% static 'img/buholen.svg' %}" alt="" class="navbar-marca">
+                {% endif %}
+                <span>{{ optica.nombre }}</span>
+            </a>
+            {% if user.is_authenticated %}
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navmenu" aria-controls="navmenu" aria-expanded="false" aria-label="Menú">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navmenu">
+                <div class="navbar-nav ms-auto align-items-lg-center gap-2 mt-2 mt-lg-0">
+                    <a href="{% url 'sales:nueva_venta' %}" class="btn btn-success btn-sm">Nueva venta</a>
+                    <a href="{% url 'prescriptions:receta_nueva' %}" class="btn btn-outline-secondary btn-sm">Nueva receta</a>
+                    <a href="{% url 'inventory:ingreso_rapido' %}" class="btn btn-outline-secondary btn-sm">Ingreso de mercadería</a>
+                    <a href="{% url 'password_change' %}" class="btn btn-outline-secondary btn-sm">Cambiar contraseña</a>
+                    <form method="post" action="{% url 'logout' %}" class="m-0">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-secondary btn-sm w-100">Salir ({{ user.username }})</button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </nav>
+    <div class="{% block container_class %}container{% endblock %}">
+        {% block content %}{% endblock %}
+    </div>
+    <footer class="container mt-5 py-4 border-top text-center" style="border-color: var(--borde) !important;">
+        <a href="https://buholen.com" class="d-inline-flex align-items-center gap-2 text-decoration-none">
+            <img src="{% static 'img/buholen.svg' %}" alt="" style="width:22px;height:22px;">
+            <span class="fw-bold" style="color: var(--tinta);">Buho<span style="color: var(--marca);">Len</span></span>
+        </a>
+        <div class="small" style="color: var(--tinta-suave);">Software para ópticas</div>
+    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    {% if user.is_authenticated %}<script src="{% static 'js/push.js' %}"></script>{% endif %}
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

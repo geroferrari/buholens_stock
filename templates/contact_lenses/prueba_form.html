@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+
+<h3 class="mb-3">{{ title }}</h3>
+
+<form method="post" class="card shadow-sm">
+    <div class="card-body">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+        <div class="row g-3">
+            <!-- Cliente: buscador + alta rápida (igual que al ingresar una receta) -->
+            <div class="col-md-6 position-relative">
+                <label class="form-label">Cliente</label>
+                {{ form.cliente.as_hidden }}
+                <input type="text" id="cliente-buscar" class="form-control" placeholder="Buscar por nombre, apellido o DNI..." autocomplete="off">
+                <div id="cliente-resultados" class="list-group position-absolute w-100 shadow-sm" style="z-index:1000; max-height:240px; overflow-y:auto; display:none;"></div>
+                <div id="cliente-seleccionado" class="d-flex flex-wrap gap-2 mt-2">
+                    {% if cliente_seleccionado %}
+                    <span class="badge text-bg-primary d-flex align-items-center gap-2 py-2 px-3 fs-6 fw-normal">
+                        {{ cliente_seleccionado.nombre_completo|default:cliente_seleccionado.email|default:"Cliente sin nombre" }}
+                        <button type="button" class="btn-close btn-close-white" style="font-size:0.6rem;" aria-label="Quitar cliente"></button>
+                    </span>
+                    {% endif %}
+                </div>
+                {% for error in form.cliente.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                <div id="receta-cliente-info" class="small mt-2"></div>
+                <a href="#" id="toggle-cliente-nuevo" class="d-inline-block mt-1 small text-decoration-none">+ No lo encuentro, cargar cliente nuevo</a>
+                <div id="form-cliente-nuevo" class="mt-2 d-none border rounded p-2 bg-light-subtle">
+                    <div class="row g-2">
+                        <div class="col-6"><input type="text" id="nc-nombre" class="form-control form-control-sm" placeholder="Nombre"></div>
+                        <div class="col-6"><input type="text" id="nc-apellido" class="form-control form-control-sm" placeholder="Apellido"></div>
+                        <div class="col-6"><input type="text" id="nc-dni" class="form-control form-control-sm" placeholder="DNI" inputmode="numeric" pattern="[0-9]*"></div>
+                        <div class="col-6"><input type="text" id="nc-telefono" class="form-control form-control-sm" placeholder="Teléfono" inputmode="numeric" pattern="[0-9]*"></div>
+                        <div class="col-12"><input type="email" id="nc-email" class="form-control form-control-sm" placeholder="Email (opcional)"></div>
+                        <div class="col-12"><input type="text" id="nc-direccion" class="form-control form-control-sm" placeholder="Dirección (opcional)"></div>
+                        <div class="col-12"><button type="button" id="btn-guardar-cliente-nuevo" class="btn btn-sm btn-success">Guardar y usar este cliente</button></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label" for="{{ form.vendedor.id_for_label }}">Atiende</label>
+                {{ form.vendedor }}
+                {% for error in form.vendedor.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label" for="{{ form.fecha_hora.id_for_label }}">{{ form.fecha_hora.label }}</label>
+                {{ form.fecha_hora }}
+                {% for error in form.fecha_hora.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+
+            <div class="col-12">
+                <label class="form-label" for="{{ form.observaciones.id_for_label }}">{{ form.observaciones.label }}</label>
+                {{ form.observaciones }}
+                {% for error in form.observaciones.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+        </div>
+
+        <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-success">Guardar</button>
+            {% if cancel_url %}<a href="{{ cancel_url }}" class="btn btn-outline-secondary">Cancelar</a>{% endif %}
+        </div>
+    </div>
+</form>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Buscador de cliente (igual que al ingresar una receta): se escribe para
+// filtrar, se hace click en un resultado para elegirlo. El <input id="id_cliente">
+// queda oculto y es lo que realmente se manda al guardar.
+(function() {
+    const clienteBuscar = document.getElementById('cliente-buscar');
+    if (!clienteBuscar) return;
+    const clienteResultados = document.getElementById('cliente-resultados');
+    const clienteSeleccionado = document.getElementById('cliente-seleccionado');
+    const inputClienteId = document.getElementById('id_cliente');
+    const recetaClienteInfo = document.getElementById('receta-cliente-info');
+    let clienteTimeout;
+
+    // Al elegir el cliente, se muestra de una si ya tiene una graduación
+    // cargada (con link para verla) o si hace falta cargarle una — sin tener
+    // que agendar la prueba primero para enterarse. Se abre en otra pestaña
+    // para no perder lo que ya se completó acá.
+    function mostrarInfoReceta(clienteId) {
+        recetaClienteInfo.innerHTML = '';
+        if (!clienteId) return;
+        fetch(`{% url 'prescriptions:info_receta_cliente_json' %}?cliente=${clienteId}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.tiene_receta) {
+                    recetaClienteInfo.innerHTML =
+                        `👁 Última receta: <strong>${data.fecha}</strong>${data.medico ? ' · ' + data.medico : ''} ` +
+                        `· <a href="${data.url}" target="_blank">Ver</a>`;
+                } else {
+                    recetaClienteInfo.innerHTML =
+                        `<a href="{% url 'prescriptions:receta_nueva' %}?cliente=${clienteId}" target="_blank" class="btn btn-sm btn-outline-primary">` +
+                        `+ Cargar la graduación de este cliente</a>`;
+                }
+            });
+    }
+
+    function elegirCliente(id, label) {
+        inputClienteId.value = id;
+        clienteSeleccionado.innerHTML = '';
+        const chip = document.createElement('span');
+        chip.className = 'badge text-bg-primary d-flex align-items-center gap-2 py-2 px-3 fs-6 fw-normal';
+        chip.textContent = label;
+        const btnX = document.createElement('button');
+        btnX.type = 'button';
+        btnX.className = 'btn-close btn-close-white';
+        btnX.style.fontSize = '0.6rem';
+        btnX.setAttribute('aria-label', 'Quitar cliente');
+        btnX.addEventListener('click', () => { inputClienteId.value = ''; clienteSeleccionado.innerHTML = ''; recetaClienteInfo.innerHTML = ''; });
+        chip.appendChild(btnX);
+        clienteSeleccionado.appendChild(chip);
+        clienteBuscar.value = '';
+        clienteResultados.style.display = 'none';
+        mostrarInfoReceta(id);
+    }
+
+    if (inputClienteId.value) mostrarInfoReceta(inputClienteId.value);
+
+    clienteSeleccionado.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('btn-close')) return;
+        inputClienteId.value = '';
+        clienteSeleccionado.innerHTML = '';
+    });
+
+    clienteBuscar.addEventListener('input', () => {
+        clearTimeout(clienteTimeout);
+        const q = clienteBuscar.value.trim();
+        if (!q) { clienteResultados.style.display = 'none'; return; }
+        clienteTimeout = setTimeout(() => {
+            fetch(`{% url 'customers:buscar_clientes_json' %}?q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(data => {
+                    clienteResultados.innerHTML = '';
+                    data.resultados.forEach(c => {
+                        const label = `${c.nombre} ${c.apellido}${c.dni ? ' (DNI ' + c.dni + ')' : ''}`.trim();
+                        const item = document.createElement('button');
+                        item.type = 'button';
+                        item.className = 'list-group-item list-group-item-action';
+                        item.textContent = label || c.email || 'Cliente sin nombre';
+                        item.addEventListener('mousedown', (ev) => { ev.preventDefault(); elegirCliente(c.id, item.textContent); });
+                        clienteResultados.appendChild(item);
+                    });
+                    clienteResultados.style.display = data.resultados.length ? '' : 'none';
+                });
+        }, 250);
+    });
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#cliente-buscar') && !e.target.closest('#cliente-resultados')) {
+            clienteResultados.style.display = 'none';
+        }
+    });
+
+    // Alta rápida de cliente sin salir del formulario: se crea por AJAX y queda elegido.
+    document.getElementById('toggle-cliente-nuevo').addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('form-cliente-nuevo').classList.toggle('d-none');
+    });
+    document.getElementById('btn-guardar-cliente-nuevo').addEventListener('click', () => {
+        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const body = new URLSearchParams({
+            nombre: document.getElementById('nc-nombre').value,
+            apellido: document.getElementById('nc-apellido').value,
+            dni: document.getElementById('nc-dni').value,
+            telefono: document.getElementById('nc-telefono').value,
+            email: document.getElementById('nc-email').value,
+            direccion: document.getElementById('nc-direccion').value,
+        });
+        fetch('{% url "customers:cliente_nuevo_rapido_json" %}', {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrftoken, 'Content-Type': 'application/x-www-form-urlencoded'},
+            body,
+        })
+            .then(r => r.json())
+            .then(data => {
+                elegirCliente(data.id, data.label);
+                ['nc-nombre','nc-apellido','nc-dni','nc-telefono','nc-email','nc-direccion'].forEach(id => document.getElementById(id).value = '');
+                document.getElementById('form-cliente-nuevo').classList.add('d-none');
+            });
+    });
+})();
+</script>
+{% endblock %}

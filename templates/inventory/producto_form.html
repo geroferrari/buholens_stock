@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% load form_extras %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+
+<h3 class="mb-3">{{ title }}</h3>
+
+{% if orden_compra_item %}
+<div class="alert alert-info">
+    Estás cargando este producto para completar el pedido
+    <a href="{% url 'inventory:orden_compra_detalle' orden_compra_item.orden_id %}">#{{ orden_compra_item.orden_id }}</a>:
+    se pidió como <strong>{{ orden_compra_item.marca_texto }} {{ orden_compra_item.modelo_texto }}</strong>{% if orden_compra_item.descripcion %} ({{ orden_compra_item.descripcion }}){% endif %}.
+    Si la marca no existe todavía en el catálogo, <a href="{% url 'inventory:marca_nueva' %}" target="_blank">creala acá</a> antes de elegirla abajo.
+    Al guardar, este producto queda vinculado automáticamente al pedido.
+</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-header fw-bold">Datos del producto</div>
+        <div class="card-body row g-3">
+            <div class="col-md-4">
+                <label class="form-label">{{ form|field_label:"codigo_barras" }}</label>
+                <div class="input-group">
+                    {{ form|field:"codigo_barras" }}
+                    <button type="button" id="btn-generar-codigo" class="btn btn-outline-secondary">Generar</button>
+                </div>
+                <div class="form-text">Si lo dejás vacío, se genera solo al guardar — pero si querés verlo/imprimirlo antes, generalo acá.</div>
+                {% for error in form|field_errors:"codigo_barras" %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+            {% for name in "categoria,proveedor,marca,modelo,color,color_cristal,calibre,material"|split %}
+            <div class="col-md-4" id="campo-{{ name }}">
+                <label class="form-label" id="label-{{ name }}">{{ form|field_label:name }}</label>
+                {{ form|field:name }}
+                {% if name == "marca" %}
+                <div class="form-check mt-1">
+                    <input type="checkbox" class="form-check-input" id="chk-filtrar-marca" checked>
+                    <label class="form-check-label small" for="chk-filtrar-marca">Mostrar solo marcas de este proveedor</label>
+                </div>
+                {% endif %}
+                {% for error in form|field_errors:name %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+            {% endfor %}
+            <div class="col-md-4" id="campo-foto">
+                <label class="form-label">{{ form|field_label:"foto" }}</label>
+                {{ form|field:"foto" }}
+                {% for error in form|field_errors:"foto" %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-header fw-bold">Precio y stock</div>
+        <div class="card-body row g-3">
+            {% for name in "precio_costo,porcentaje_iva,precio"|split %}
+            <div class="col-md-3" id="campo-{{ name }}">
+                <label class="form-label">{{ form|field_label:name }}</label>
+                {{ form|field:name }}
+                {% for error in form|field_errors:name %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-success">Guardar</button>
+        <button type="submit" name="imprimir_etiqueta" value="1" class="btn btn-primary">🏷️ Guardar e imprimir etiqueta</button>
+        {% if cancel_url %}<a href="{{ cancel_url }}" class="btn btn-outline-secondary">Cancelar</a>{% endif %}
+    </div>
+</form>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('btn-generar-codigo').addEventListener('click', () => {
+    fetch('{% url "inventory:generar_codigo_barras_ajax" %}')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('id_codigo_barras').value = data.codigo;
+        });
+});
+
+// Mostrar/ocultar campos según la categoría elegida — es puramente visual
+// (no cambia qué se guarda en la base): categorías que no controlan stock
+// no necesitan "Stock mínimo", y algunas categorías (Líquidos, Lentes de
+// Contacto, Cristales, Accesorios) no usan todos los campos físicos.
+(function() {
+    const categoriasData = {
+        {% for c in form.categoria.field.queryset %}
+        "{{ c.pk }}": {controlaStock: {{ c.controla_stock|yesno:"true,false" }}, nombre: "{{ c.nombre|escapejs }}"},
+        {% endfor %}
+    };
+    const CAMPOS_OCULTOS_POR_CATEGORIA = {
+        "Liquidos": ["color", "color_cristal", "material", "foto"],
+        "Lentes de Contacto": ["color_cristal", "calibre", "material", "foto"],
+        "Cristales": ["color", "calibre", "material", "foto"],
+        "Accesorios": ["color", "calibre", "material", "color_cristal"],
+        "Reparaciones": ["color", "color_cristal", "calibre", "material", "foto"],
+    };
+    const TODOS_LOS_CAMPOS_TOGGLEABLES = ["color", "color_cristal", "calibre", "material", "foto", "stock_minimo"];
+
+    const selectCategoria = document.getElementById('id_categoria');
+    const labelCalibre = document.getElementById('label-calibre');
+
+    function actualizarCamposSegunCategoria() {
+        TODOS_LOS_CAMPOS_TOGGLEABLES.forEach(campo => {
+            const el = document.getElementById(`campo-${campo}`);
+            if (el) el.classList.remove('d-none');
+        });
+        if (labelCalibre) labelCalibre.textContent = 'Calibre';
+
+        const info = categoriasData[selectCategoria.value];
+        if (!info) return;
+
+        if (!info.controlaStock) {
+            const el = document.getElementById('campo-stock_minimo');
+            if (el) el.classList.add('d-none');
+        }
+
+        const ocultos = CAMPOS_OCULTOS_POR_CATEGORIA[info.nombre] || [];
+        ocultos.forEach(campo => {
+            const el = document.getElementById(`campo-${campo}`);
+            if (el) el.classList.add('d-none');
+        });
+
+        if (info.nombre === 'Liquidos' && labelCalibre) {
+            labelCalibre.textContent = 'Tamaño';
+        }
+    }
+
+    selectCategoria.addEventListener('change', actualizarCamposSegunCategoria);
+    actualizarCamposSegunCategoria();
+})();
+
+// Filtro de marca por proveedor: al elegir un proveedor, el select de marca
+// muestra solo las marcas que ese proveedor tiene cargadas (Proveedor.marcas)
+// para encontrarla más rápido. El checkbox permite ver todas igual, por si
+// la marca todavía no se agregó a ese proveedor.
+(function() {
+    const proveedorMarcas = {
+        {% for p in form.proveedor.field.queryset %}
+        "{{ p.pk }}": [{% for m in p.marcas.all %}"{{ m.pk }}",{% endfor %}],
+        {% endfor %}
+    };
+
+    const selectProveedor = document.getElementById('id_proveedor');
+    const selectMarca = document.getElementById('id_marca');
+    const chkFiltrar = document.getElementById('chk-filtrar-marca');
+    if (!selectProveedor || !selectMarca || !chkFiltrar) return;
+
+    function actualizarFiltroMarca() {
+        const marcasDelProveedor = proveedorMarcas[selectProveedor.value];
+        const filtrar = chkFiltrar.checked && selectProveedor.value && marcasDelProveedor;
+
+        Array.from(selectMarca.options).forEach(opt => {
+            if (!opt.value) return; // opción vacía ("---------"), siempre visible
+            const mostrar = !filtrar || marcasDelProveedor.includes(opt.value);
+            opt.hidden = !mostrar;
+        });
+    }
+
+    selectProveedor.addEventListener('change', actualizarFiltroMarca);
+    chkFiltrar.addEventListener('change', actualizarFiltroMarca);
+    actualizarFiltroMarca();
+})();
+</script>
+{% endblock %}

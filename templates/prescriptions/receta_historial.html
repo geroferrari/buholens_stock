@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Historial de carga de recetas{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">📋 Historial de carga de recetas</h3>
+    <a href="{% url 'prescriptions:receta_lista' %}" class="btn btn-outline-secondary btn-sm">← Volver a recetas</a>
+</div>
+<p class="text-muted">Quién cargó recetas y cuántas. Total histórico: <strong>{{ total_general }}</strong>.</p>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light fw-bold">Por empleado</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Empleado</th>
+                    <th class="text-end">Hoy</th>
+                    <th class="text-end">Últimos 7 días</th>
+                    <th class="text-end">Últimos 30 días</th>
+                    <th class="text-end">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in por_empleado %}
+                <tr>
+                    <td>{{ e.nombre }}</td>
+                    <td class="text-end {% if e.hoy %}fw-bold text-success{% else %}text-muted{% endif %}">{{ e.hoy }}</td>
+                    <td class="text-end">{{ e.semana }}</td>
+                    <td class="text-end">{{ e.mes }}</td>
+                    <td class="text-end fw-bold">{{ e.total }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-4">Todavía no se cargó ninguna receta.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-light fw-bold">Por día (últimos 30 días)</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Fecha</th>
+                    <th class="text-end">Total del día</th>
+                    <th>Detalle por empleado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in por_dia %}
+                <tr>
+                    <td>{{ d.dia|date:"D d/m/Y" }}{% if d.dia == hoy %} <span class="badge bg-success">hoy</span>{% endif %}</td>
+                    <td class="text-end fw-bold">{{ d.total }}</td>
+                    <td>
+                        {% for x in d.detalle %}<span class="badge text-bg-light border me-1">{{ x.nombre }}: {{ x.cantidad }}</span>{% endfor %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="text-center text-muted py-4">Sin cargas en los últimos 30 días.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

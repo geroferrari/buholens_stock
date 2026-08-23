@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Venta #{{ venta.pk }}{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h3 class="mb-0">Venta #{{ venta.pk }}</h3>
+    <a href="{% url 'sales:venta_pendientes_buscar' %}" class="btn btn-outline-secondary btn-sm">← Volver a la búsqueda</a>
+</div>
+
+{% if messages %}
+{% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
+{% endif %}
+
+{% if venta.es_obra_social %}
+<div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+        🏥 Venta por obra social{% if venta.cliente.obra_social %}: <strong>{{ venta.cliente.obra_social }}</strong>{% endif %}.
+        {% if venta.obra_social_resuelta %}Ya está marcada como resuelta.{% else %}Todavía falta gestionar el trámite (marcarla como resuelta desde "Ventas por obra social").{% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body row g-3">
+        <div class="col-md-3">
+            <div class="text-muted small">Cliente</div>
+            <div>{{ venta.cliente|default:"Consumidor final" }}</div>
+        </div>
+        <div class="col-md-3">
+            <div class="text-muted small">Fecha</div>
+            <div>{{ venta.fecha|date:"d/m/Y H:i" }}</div>
+        </div>
+        <div class="col-md-2">
+            <div class="text-muted small">Total</div>
+            <div class="fw-bold">${{ venta.total }}</div>
+        </div>
+        <div class="col-md-2">
+            <div class="text-muted small">Pagado</div>
+            <div>${{ venta.monto_pagado }}</div>
+        </div>
+        <div class="col-md-2">
+            <div class="text-muted small">Saldo</div>
+            <div class="{% if venta.saldo_pendiente > 0 %}text-danger fw-bold{% endif %}">${{ venta.saldo_pendiente }}</div>
+        </div>
+        <div class="col-md-6">
+            <div class="text-muted small">Forma de pago</div>
+            <div>
+                {% if venta.forma_pago %}Seña/inicial: <strong>{{ venta.get_forma_pago_display }}{% if venta.cuotas %} ({{ venta.cuotas }} cuotas){% endif %}</strong>{% else %}—{% endif %}
+                {% if venta.forma_pago_saldo %} · Saldo: <strong>{{ venta.get_forma_pago_saldo_display }}{% if venta.cuotas_saldo %} ({{ venta.cuotas_saldo }} cuotas){% endif %}</strong>{% endif %}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="text-muted small">Estado de entrega</div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                {% if venta.estado_entrega == "entregado" %}<span class="badge bg-success">Entregado</span>
+                {% elif venta.estado_entrega == "notificado" %}<span class="badge bg-info text-dark">Notificado</span>
+                {% else %}<span class="badge bg-warning text-dark">Pendiente</span>{% endif %}
+                {% if whatsapp_url and venta.estado_entrega != "entregado" %}
+                <a href="{{ whatsapp_url }}" target="_blank" class="btn btn-sm btn-outline-success">💬 Abrir WhatsApp</a>
+                {% if venta.estado_entrega != "notificado" %}
+                <form method="post" action="{% url 'sales:marcar_notificado' venta.pk %}" class="m-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'sales:venta_completar' venta.pk %}">
+                    <button type="submit" class="btn btn-sm btn-outline-info">✅ Ya avisé</button>
+                </form>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-header fw-bold">Productos</div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light"><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Promoción</th><th>Subtotal</th><th>Entrega</th></tr></thead>
+            <tbody>
+                {% for item in venta.items.all %}
+                <tr>
+                    <td>{{ item.producto }}</td>
+                    <td>{{ item.cantidad }}</td>
+                    <td>
+                        {% if item.promocion and item.precio_unitario < item.producto.precio %}
+                        <span class="text-muted text-decoration-line-through small">${{ item.producto.precio }}</span><br>
+                        <span class="text-success fw-bold">${{ item.precio_unitario }}</span>
+                        {% else %}
+                        ${{ item.precio_unitario }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if venta.estado_entrega == "entregado" %}
+                        {{ item.promocion.nombre|default:"—" }}
+                        {% elif promociones_disponibles %}
+                        <select class="form-select form-select-sm select-promocion-item" data-item-id="{{ item.id }}">
+                            <option value="">— sin promoción —</option>
+                            {% for p in promociones_disponibles %}
+                            <option value="{{ p.id }}" {% if item.promocion_id == p.id %}selected{% endif %}>{{ p.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.promocion and item.subtotal < item.subtotal_sin_promocion %}
+                        <span class="text-muted text-decoration-line-through small">${{ item.subtotal_sin_promocion }}</span><br>
+                        <span class="text-success fw-bold">${{ item.subtotal }}</span>
+                        {% else %}
+                        ${{ item.subtotal }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.entregado %}<span class="badge bg-success">Entregado</span>
+                        {% else %}<span class="badge bg-warning text-dark">Pendiente</span>{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card-body py-2">
+        <span class="form-text mb-0">El estado de entrega es el que quedó al confirmar la venta: se cierra todo junto con el botón de abajo, no ítem por ítem.</span>
+    </div>
+</div>
+
+{% if venta.observaciones %}
+<div class="card shadow-sm mb-3">
+    <div class="card-header fw-bold">📝 Observaciones</div>
+    <div class="card-body">
+        <p class="mb-0" style="white-space: pre-wrap;">{{ venta.observaciones }}</p>
+    </div>
+</div>
+{% endif %}
+
+{% if venta.estado_entrega != "entregado" %}
+<div class="card shadow-sm border-success">
+    <div class="card-header bg-success text-white fw-bold">Cerrar venta</div>
+    <div class="card-body">
+        <form method="post" action="{% url 'sales:marcar_entregado' venta.pk %}"
+              onsubmit="return confirm('¿Confirmás que el cliente ya retiró todo el pedido? Esto cierra la venta.');">
+            {% csrf_token %}
+            {% if venta.saldo_pendiente > 0 %}
+            <p class="text-danger fw-bold">Queda un saldo de ${{ venta.saldo_pendiente }}: se cobra ahora, en el mismo momento en que se entrega.</p>
+            <div class="row g-2 mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Forma de pago del saldo</label>
+                    <select name="forma_pago_saldo" class="form-select" required>
+                        <option value="">— elegir —</option>
+                        {% for value, label in forma_pago_choices %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Cuotas (si es tarjeta)</label>
+                    <input type="number" name="cuotas_saldo" class="form-control" min="1">
+                </div>
+            </div>
+            {% else %}
+            <p class="text-success mb-3">✅ Ya está todo pago.</p>
+            {% endif %}
+            <button type="submit" class="btn btn-success btn-lg w-100">
+                📦 Marcar como ENTREGADO{% if venta.saldo_pendiente > 0 %} y cobrar el saldo{% endif %} — cerrar venta
+            </button>
+        </form>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-success">✅ Venta entregada y cerrada.</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const csrftoken = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
+document.querySelectorAll('.select-promocion-item').forEach(sel => {
+    sel.addEventListener('change', () => {
+        const body = new URLSearchParams({promocion_id: sel.value});
+        fetch(`/ventas/{{ venta.pk }}/items/${sel.dataset.itemId}/promocion/`, {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrftoken, 'Content-Type': 'application/x-www-form-urlencoded'},
+            body,
+        }).then(() => location.reload()); // recarga para reflejar el nuevo total/saldo
+    });
+});
+</script>
+{% endblock %}

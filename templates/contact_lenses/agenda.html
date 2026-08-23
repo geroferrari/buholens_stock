@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Lentes de contacto{% endblock %}
+{% block content %}
+
+{% if messages %}{% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}{% endif %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <h3 class="mb-0">👁️ Lentes de contacto <span class="text-muted fs-5">— pruebas</span></h3>
+    <div class="d-flex gap-2">
+        <a href="{% url 'contact_lenses:prueba_nueva' %}" class="btn btn-success btn-sm">+ Agendar prueba</a>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <a href="?anio={{ nav_prev.anio }}&mes={{ nav_prev.mes }}" class="btn btn-outline-secondary btn-sm">← Mes anterior</a>
+    <h5 class="mb-0">{{ mes_nombre }} {{ anio }}</h5>
+    <a href="?anio={{ nav_next.anio }}&mes={{ nav_next.mes }}" class="btn btn-outline-secondary btn-sm">Mes siguiente →</a>
+</div>
+
+<div class="table-responsive mb-3">
+<table class="table table-bordered mb-0" style="table-layout:fixed;">
+    <thead>
+        <tr class="text-center small text-muted">
+            {% for d in dias_semana %}<th class="fw-normal">{{ d }}</th>{% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for semana in semanas %}
+        <tr>
+            {% for dia in semana %}
+            <td class="align-top {% if not dia.en_mes %}bg-light text-muted{% endif %} {% if dia.es_hoy %}border-primary border-2{% endif %}" style="height:96px;">
+                <a href="{% url 'contact_lenses:prueba_nueva' %}?fecha={{ dia.fecha|date:'Y-m-d' }}"
+                   class="small text-decoration-none d-block mb-1 {% if dia.es_hoy %}fw-bold text-primary{% else %}text-muted{% endif %}"
+                   title="Agendar una prueba este día">{{ dia.fecha|date:'j' }}</a>
+                {% for p in dia.pruebas %}
+                <a href="{% url 'contact_lenses:prueba_detalle' p.pk %}" class="d-block text-decoration-none mb-1">
+                    <span class="badge bg-{{ p.color_estado }} d-block text-truncate text-start fw-normal"
+                          title="{{ p.fecha_hora|date:'H:i' }} · {{ p.nombre_cliente }}">{{ p.fecha_hora|date:'H:i' }} {{ p.nombre_cliente }}</span>
+                </a>
+                {% endfor %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<div class="mb-4 small">
+    <span class="badge bg-warning">Agendada</span>
+    <span class="badge bg-success">Realizada</span>
+    <span class="badge bg-secondary">Cancelada</span>
+</div>
+
+<h5 class="mb-2">Pruebas de {{ mes_nombre }} {{ anio }}</h5>
+{% if tabla %}
+<div class="table-responsive">
+<table class="table table-sm align-middle">
+    <thead>
+        <tr>
+            <th>Fecha y hora</th><th>Cliente</th><th>Atiende</th>
+            <th>Estado</th>{% if es_admin %}<th>Precio venta</th>{% endif %}<th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in tabla %}
+        <tr>
+            <td>{{ p.fecha_hora|date:'d/m/Y H:i' }}</td>
+            <td>{{ p.nombre_cliente }}</td>
+            <td>{{ p.vendedor.nombre }}</td>
+            <td><span class="badge bg-{{ p.color_estado }}">{{ p.get_estado_display }}</span></td>
+            {% if es_admin %}<td>{% if p.venta_confirmada %}${{ p.venta.total }}{% else %}<span class="text-muted">—</span>{% endif %}</td>{% endif %}
+            <td><a href="{% url 'contact_lenses:prueba_detalle' p.pk %}" class="btn btn-sm btn-outline-secondary">Ver</a></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<div class="alert alert-info">No hay pruebas agendadas en {{ mes_nombre }}.</div>
+{% endif %}
+
+{% endblock %}

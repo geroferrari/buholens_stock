@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Panel de gestión{% endblock %}
+{% block content %}
+
+<h3 class="mb-3">⚙️ Panel de gestión</h3>
+
+{% if es_admin %}
+<div class="d-flex flex-wrap gap-2 mb-4">
+    <a href="{% url 'inventory:producto_lista' %}" class="btn btn-outline-primary">Productos</a>
+    <a href="{% url 'inventory:precio_lista' %}" class="btn btn-outline-primary">💲 Ver precios</a>
+    <a href="{% url 'sales:caja_del_dia' %}" class="btn btn-outline-primary">💰 Hacer la caja</a>
+    <a href="{% url 'inventory:marca_lista' %}" class="btn btn-outline-primary">Marcas</a>
+    <a href="{% url 'inventory:categoria_lista' %}" class="btn btn-outline-primary">Categorías</a>
+    <a href="{% url 'inventory:proveedor_lista' %}" class="btn btn-outline-primary">Proveedores</a>
+    <a href="{% url 'sales:vendedor_lista' %}" class="btn btn-outline-primary">Vendedores</a>
+    <a href="{% url 'inventory:promocion_lista' %}" class="btn btn-outline-primary">🏷️ Promociones y financiación</a>
+    <a href="{% url 'sales:devolucion_nueva' %}" class="btn btn-outline-primary">↩️ Nueva devolución</a>
+    <a href="{% url 'sales:devolucion_lista' %}" class="btn btn-outline-primary">Devoluciones</a>
+    <a href="{% url 'inventory:movimiento_lista' %}" class="btn btn-outline-primary">Movimientos de stock</a>
+    <a href="{% url 'inventory:escaneo_no_encontrado_lista' %}" class="btn btn-outline-primary">🔍 Códigos no encontrados</a>
+    <a href="{% url 'sales:venta_lista' %}" class="btn btn-outline-primary">Historial de ventas</a>
+    <a href="{% url 'sales:dashboard' %}" class="btn btn-outline-primary">📊 Estadísticas</a>
+    <a href="{% url 'customers:cliente_lista' %}" class="btn btn-outline-primary">Clientes</a>
+    <a href="{% url 'customers:obra_social_lista' %}" class="btn btn-outline-primary">🏥 Obras sociales</a>
+    <a href="{% url 'sales:venta_obra_social_lista' %}" class="btn btn-outline-primary">🏥 Ventas por obra social</a>
+    <a href="{% url 'prescriptions:orden_laboratorio_lista' %}" class="btn btn-outline-primary">🧾 Órdenes de laboratorio</a>
+    <a href="{% url 'prescriptions:receta_historial' %}" class="btn btn-outline-primary">📋 Historial de carga de recetas</a>
+    <a href="{% url 'core:papelera' %}" class="btn btn-outline-primary">🗑️ Papelera</a>
+    <a href="{% url 'core:configuracion' %}" class="btn btn-outline-primary">⚙️ Configuración de la óptica</a>
+</div>
+<div class="d-flex flex-wrap gap-2">
+    <a href="{% url 'admin:index' %}" class="btn btn-dark">Administración avanzada (Django admin)</a>
+</div>
+{% else %}
+<div class="d-flex flex-wrap gap-2">
+    <a href="{% url 'inventory:producto_lista' %}" class="btn btn-outline-primary">Productos (consulta)</a>
+    <a href="{% url 'inventory:precio_lista' %}" class="btn btn-outline-primary">💲 Ver precios</a>
+    <a href="{% url 'sales:devolucion_nueva' %}" class="btn btn-outline-primary">↩️ Nueva devolución</a>
+    <a href="{% url 'customers:cliente_lista' %}" class="btn btn-outline-primary">Clientes</a>
+    <a href="{% url 'prescriptions:orden_laboratorio_lista' %}" class="btn btn-outline-primary">🧾 Órdenes de laboratorio</a>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+
+<style>
+    .campo-con-signo .input-group-text { font-weight: bold; width: 1.8em; justify-content: center; }
+    .campo-con-signo .input-group-text.signo-positivo { background: #d1e7dd; color: #0f5132; }
+    .campo-con-signo .input-group-text.signo-negativo { background: #f8d7da; color: #842029; }
+</style>
+
+<h3 class="mb-3">{{ title }}</h3>
+
+{% if prueba_asociada %}
+<div class="alert alert-info d-flex align-items-center gap-2">
+    👁 Estás cargando la graduación para la <strong>prueba de lentes de contacto</strong> de
+    {{ prueba_asociada.nombre_cliente }} ({{ prueba_asociada.fecha_hora|date:'d/m/Y H:i' }}).
+    Al guardar, queda asociada a esa prueba.
+</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+    {% include "prescriptions/_receta_campos.html" with mostrar_cliente=True %}
+
+    <button type="submit" class="btn btn-success">Guardar</button>
+    {% if cancel_url %}<a href="{{ cancel_url }}" class="btn btn-outline-secondary">Cancelar</a>{% endif %}
+</form>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/receta_cerca.js' %}"></script>
+<script>
+// Buscador de cliente (igual que en el punto de venta): se escribe para
+// filtrar, se hace click en un resultado para elegirlo. El <input id="id_cliente">
+// queda oculto y es lo que realmente se manda al guardar el formulario.
+(function() {
+    const clienteBuscar = document.getElementById('cliente-buscar');
+    if (!clienteBuscar) return;
+    const clienteResultados = document.getElementById('cliente-resultados');
+    const clienteSeleccionado = document.getElementById('cliente-seleccionado');
+    const inputClienteId = document.getElementById('id_cliente');
+    let clienteTimeout;
+
+    window.elegirClienteReceta = function(id, label) {
+        inputClienteId.value = id;
+        clienteSeleccionado.innerHTML = '';
+        const chip = document.createElement('span');
+        chip.className = 'badge text-bg-primary d-flex align-items-center gap-2 py-2 px-3 fs-6 fw-normal';
+        chip.textContent = label;
+        const btnX = document.createElement('button');
+        btnX.type = 'button';
+        btnX.className = 'btn-close btn-close-white';
+        btnX.style.fontSize = '0.6rem';
+        btnX.setAttribute('aria-label', 'Quitar cliente');
+        btnX.addEventListener('click', () => {
+            inputClienteId.value = '';
+            clienteSeleccionado.innerHTML = '';
+        });
+        chip.appendChild(btnX);
+        clienteSeleccionado.appendChild(chip);
+        clienteBuscar.value = '';
+        clienteResultados.style.display = 'none';
+    };
+
+    clienteSeleccionado.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('btn-close')) return;
+        inputClienteId.value = '';
+        clienteSeleccionado.innerHTML = '';
+    });
+
+    clienteBuscar.addEventListener('input', () => {
+        clearTimeout(clienteTimeout);
+        const q = clienteBuscar.value.trim();
+        if (!q) { clienteResultados.style.display = 'none'; return; }
+        clienteTimeout = setTimeout(() => {
+            fetch(`{% url 'customers:buscar_clientes_json' %}?q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(data => {
+                    clienteResultados.innerHTML = '';
+                    data.resultados.forEach(c => {
+                        const label = `${c.nombre} ${c.apellido}${c.dni ? ' (DNI ' + c.dni + ')' : ''}`.trim();
+                        const item = document.createElement('button');
+                        item.type = 'button';
+                        item.className = 'list-group-item list-group-item-action';
+                        item.textContent = label || c.email || 'Cliente sin nombre';
+                        item.addEventListener('mousedown', (e) => {
+                            e.preventDefault();
+                            window.elegirClienteReceta(c.id, label || c.email || 'Cliente sin nombre');
+                        });
+                        clienteResultados.appendChild(item);
+                    });
+                    clienteResultados.style.display = data.resultados.length ? '' : 'none';
+                });
+        }, 250);
+    });
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#cliente-buscar') && !e.target.closest('#cliente-resultados')) {
+            clienteResultados.style.display = 'none';
+        }
+    });
+})();
+
+// Buscador genérico tipo "médico"/"obra social": se escribe para filtrar y
+// elegir de la lista, pero si al salir del campo quedó tipeado un nombre que
+// no se eligió, se da de alta (o se reutiliza si ya existe) solo — sin
+// mini-formulario de alta aparte, para que nunca quede bloqueado por no
+// encontrar la opción exacta ni se generen variantes de texto sueltas.
+function initBuscadorAutocompletar({ prefijo, inputIdCampo, urlBuscar, urlNuevoRapido, quitarLabel }) {
+    const buscar = document.getElementById(`${prefijo}-buscar`);
+    if (!buscar) return;
+    const resultados = document.getElementById(`${prefijo}-resultados`);
+    const seleccionado = document.getElementById(`${prefijo}-seleccionado`);
+    const inputId = document.getElementById(inputIdCampo);
+    let timeout;
+
+    function elegir(id, label) {
+        inputId.value = id;
+        seleccionado.innerHTML = '';
+        const chip = document.createElement('span');
+        chip.className = 'badge text-bg-primary d-flex align-items-center gap-2 py-2 px-3 fs-6 fw-normal';
+        chip.textContent = label;
+        const btnX = document.createElement('button');
+        btnX.type = 'button';
+        btnX.className = 'btn-close btn-close-white';
+        btnX.style.fontSize = '0.6rem';
+        btnX.setAttribute('aria-label', quitarLabel);
+        btnX.addEventListener('click', () => {
+            inputId.value = '';
+            seleccionado.innerHTML = '';
+            buscar.value = '';
+        });
+        chip.appendChild(btnX);
+        seleccionado.appendChild(chip);
+        buscar.value = '';
+        resultados.style.display = 'none';
+    }
+
+    seleccionado.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('btn-close')) return;
+        inputId.value = '';
+        seleccionado.innerHTML = '';
+    });
+
+    buscar.addEventListener('input', () => {
+        clearTimeout(timeout);
+        inputId.value = '';
+        const q = buscar.value.trim();
+        if (!q) { resultados.style.display = 'none'; return; }
+        timeout = setTimeout(() => {
+            fetch(`${urlBuscar}?q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(data => {
+                    resultados.innerHTML = '';
+                    data.resultados.forEach(r => {
+                        const item = document.createElement('button');
+                        item.type = 'button';
+                        item.className = 'list-group-item list-group-item-action';
+                        item.textContent = r.nombre;
+                        item.addEventListener('mousedown', (e) => {
+                            e.preventDefault();
+                            elegir(r.id, r.nombre);
+                        });
+                        resultados.appendChild(item);
+                    });
+                    resultados.style.display = data.resultados.length ? '' : 'none';
+                });
+        }, 250);
+    });
+
+    buscar.addEventListener('blur', () => {
+        setTimeout(() => {
+            const q = buscar.value.trim();
+            if (!q || inputId.value) return;
+            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            fetch(urlNuevoRapido, {
+                method: 'POST',
+                headers: {'X-CSRFToken': csrftoken, 'Content-Type': 'application/x-www-form-urlencoded'},
+                body: new URLSearchParams({ nombre: q }),
+            })
+                .then(r => r.json())
+                .then(data => elegir(data.id, data.label));
+        }, 200);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest(`#${prefijo}-buscar`) && !e.target.closest(`#${prefijo}-resultados`)) {
+            resultados.style.display = 'none';
+        }
+    });
+}
+
+initBuscadorAutocompletar({
+    prefijo: 'medico', inputIdCampo: 'id_medico', quitarLabel: 'Quitar médico',
+    urlBuscar: '{% url "prescriptions:buscar_medicos_json" %}',
+    urlNuevoRapido: '{% url "prescriptions:medico_nuevo_rapido_json" %}',
+});
+initBuscadorAutocompletar({
+    prefijo: 'obra-social', inputIdCampo: 'id_obra_social', quitarLabel: 'Quitar obra social',
+    urlBuscar: '{% url "customers:buscar_obras_sociales_json" %}',
+    urlNuevoRapido: '{% url "customers:obra_social_nueva_rapida_json" %}',
+});
+
+// Alta rápida de cliente sin salir del formulario de receta (ni perder lo que
+// ya se cargó acá): se crea por AJAX y queda elegido en el buscador de arriba.
+document.getElementById('toggle-cliente-nuevo').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('form-cliente-nuevo').classList.toggle('d-none');
+});
+
+// Sacar foto de la receta con la cámara del celu: la foto tomada se copia
+// al input real de "archivo" (así se sube igual que un archivo elegido a mano)
+// y se muestra una preview para confirmar que salió bien antes de guardar.
+document.getElementById('btn-foto-receta').addEventListener('click', () => {
+    document.getElementById('input-foto-receta').click();
+});
+
+document.getElementById('input-foto-receta').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    document.getElementById('id_archivo').files = dataTransfer.files;
+
+    const preview = document.getElementById('preview-foto-receta');
+    preview.src = URL.createObjectURL(file);
+    preview.classList.remove('d-none');
+});
+
+// Esférico/cilíndrico/adición: anteponer visualmente el "+" al tipear un
+// valor positivo, para que quede tan explícito como el "-" (los inputs
+// number no aceptan un "+" en el propio valor, por eso va en un span aparte).
+document.querySelectorAll('.campo-con-signo').forEach((grupo) => {
+    const span = grupo.querySelector('.input-group-text');
+    const input = grupo.querySelector('input');
+    const actualizar = () => {
+        const valor = parseFloat(input.value);
+        span.classList.remove('signo-positivo', 'signo-negativo');
+        if (valor > 0) { span.textContent = '+'; span.classList.add('signo-positivo'); }
+        else if (valor < 0) { span.textContent = '-'; span.classList.add('signo-negativo'); }
+        else { span.textContent = ''; }
+    };
+    input.addEventListener('input', actualizar);
+    actualizar();
+});
+
+document.getElementById('btn-guardar-cliente-nuevo').addEventListener('click', () => {
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const body = new URLSearchParams({
+        nombre: document.getElementById('nc-nombre').value,
+        apellido: document.getElementById('nc-apellido').value,
+        dni: document.getElementById('nc-dni').value,
+        telefono: document.getElementById('nc-telefono').value,
+        email: document.getElementById('nc-email').value,
+        direccion: document.getElementById('nc-direccion').value,
+    });
+    fetch('{% url "customers:cliente_nuevo_rapido_json" %}', {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrftoken, 'Content-Type': 'application/x-www-form-urlencoded'},
+        body,
+    })
+        .then(r => r.json())
+        .then(data => {
+            window.elegirClienteReceta(data.id, data.label);
+            ['nc-nombre', 'nc-apellido', 'nc-dni', 'nc-telefono', 'nc-email', 'nc-direccion'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('form-cliente-nuevo').classList.add('d-none');
+        });
+});
+</script>
+{% endblock %}

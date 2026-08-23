@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Pedido #{{ orden.pk }}{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h3 class="mb-0">Pedido #{{ orden.pk }} — {{ orden.proveedor.nombre }}</h3>
+        <span class="badge text-bg-{% if orden.estado == 'REC' %}success{% elif orden.estado == 'CAN' %}danger{% elif orden.estado == 'PAR' %}warning{% else %}secondary{% endif %}">
+            {{ orden.get_estado_display }}
+        </span>
+        <small class="text-muted">Creado el {{ orden.fecha_creacion|date:"d/m/Y H:i" }}{% if orden.usuario %} por {{ orden.usuario.username }}{% endif %}</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'inventory:orden_compra_exportar_csv' orden.pk %}" class="btn btn-outline-secondary">⬇️ Exportar CSV</a>
+        <a href="{% url 'inventory:orden_compra_pdf' orden.pk %}" target="_blank" class="btn btn-outline-secondary">🖨️ Imprimir / PDF</a>
+        <a href="{% url 'inventory:orden_compra_lista' %}" class="btn btn-outline-secondary">Volver</a>
+    </div>
+</div>
+
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>
+{% endfor %}
+{% endif %}
+
+{% if orden.notas %}
+<div class="alert alert-light border">Notas: {{ orden.notas }}</div>
+{% endif %}
+
+<div class="card shadow-sm mb-3">
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Ítem</th>
+                    <th class="text-end">Pedido</th>
+                    <th class="text-end">Recibido</th>
+                    <th class="text-end">Pendiente</th>
+                    <th class="text-end">Costo unit.</th>
+                    <th style="width: 260px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in orden.items.all %}
+                <tr>
+                    <td>
+                        {{ item.nombre }}
+                        {% if item.es_nuevo %}<span class="badge text-bg-warning">sin vincular al catálogo</span>{% endif %}
+                    </td>
+                    <td class="text-end">{{ item.cantidad_pedida }}</td>
+                    <td class="text-end">{{ item.cantidad_recibida }}</td>
+                    <td class="text-end">{{ item.pendiente }}</td>
+                    <td class="text-end">${{ item.costo_unitario }}</td>
+                    <td class="text-end">
+                        {% if orden.estado == "ENV" or orden.estado == "PAR" %}
+                            {% if item.pendiente > 0 %}
+                                {% if item.es_nuevo %}
+                                <a href="{% url 'inventory:producto_nuevo' %}?orden_item_id={{ item.pk }}"
+                                   class="btn btn-sm btn-outline-primary">Vincular / crear producto</a>
+                                {% else %}
+                                <form method="post" action="{% url 'inventory:orden_compra_recibir_item' orden.pk item.pk %}" class="d-flex gap-1 justify-content-end">
+                                    {% csrf_token %}
+                                    <input type="number" name="cantidad" value="{{ item.pendiente }}" min="1" max="{{ item.pendiente }}" class="form-control form-control-sm" style="width: 80px;">
+                                    <button type="submit" class="btn btn-sm btn-success">Recibir</button>
+                                </form>
+                                {% endif %}
+                            {% else %}
+                            <span class="text-success">✓ Completo</span>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-3">Este pedido no tiene ítems.</td></tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="fw-bold">
+                    <td>Total estimado</td><td colspan="4"></td><td class="text-end">${{ orden.total_estimado }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+{% if orden.estado == "ENV" or orden.estado == "PAR" or orden.estado == "BOR" %}
+<form method="post" action="{% url 'inventory:orden_compra_cancelar' orden.pk %}" onsubmit="return confirm('¿Cancelar este pedido?');">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-outline-danger btn-sm">Cancelar pedido</button>
+</form>
+{% endif %}
+
+{% endblock %}

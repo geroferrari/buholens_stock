@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+db.sqlite3
+/staticfiles/
+/media/
+.env
+*.egg-info/
+venv/
+*~
+.claude/
+
+# Exportaciones/reportes con datos reales del negocio (precios, stock, etc):
+# no se suben al repo.
+*.csv
+*.xlsx

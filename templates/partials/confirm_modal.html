@@ -1,0 +1,26 @@
+<!-- Modal de confirmación genérico y reutilizable, para no mezclar confirm()
+     nativo del navegador con el resto de la UI (que es toda Bootstrap).
+     Se incluye pasando por contexto: modal_id, modal_title, modal_mensaje,
+     modal_confirmar_label y modal_btn_class (ver otros templates para el
+     ejemplo real, acá no se escribe literal para no confundir al parser).
+     El botón de confirmar queda con id "{{ modal_id }}-confirmar": bindeale
+     el click desde JS a la acción real (submit de un form, etc). Si el
+     mensaje es dinámico, actualizá el texto de "{{ modal_id }}-mensaje" antes
+     de abrir el modal con `new bootstrap.Modal(...).show()`. -->
+<div class="modal fade" id="{{ modal_id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ modal_title|default:"¿Confirmás esta acción?" }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p id="{{ modal_id }}-mensaje" class="mb-0">{{ modal_mensaje }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn {{ modal_btn_class|default:'btn-danger' }}" id="{{ modal_id }}-confirmar" data-bs-dismiss="modal">{{ modal_confirmar_label|default:"Sí, confirmar" }}</button>
+            </div>
+        </div>
+    </div>
+</div>

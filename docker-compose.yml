@@ -1,0 +1,31 @@
+# Postgres local para desarrollo.
+# Mismo motor que producción, para evitar bugs por diferencias SQLite/Postgres.
+#
+#   docker compose up -d db        -> levanta la base
+#   docker compose down            -> apaga (los datos quedan en el volumen)
+#   docker compose down -v         -> apaga y BORRA los datos locales
+#
+# Nota: la imagen usa Postgres 16. Si tu base de producción es otra versión mayor,
+# cambiá el tag para que coincida (ej: postgres:17).
+services:
+  db:
+    image: postgres:16
+    container_name: stockero_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: stockero
+      POSTGRES_USER: optica
+      POSTGRES_PASSWORD: optica
+    ports:
+      # Puerto configurable (DB_PORT en .env) por si el 5432 ya está ocupado.
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U optica -d stockero"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

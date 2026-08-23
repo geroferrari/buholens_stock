@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Venta #{{ venta.pk }}{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h3 class="mb-0">Venta #{{ venta.pk }}</h3>
+        <div class="text-muted small">{{ venta.fecha|date:"d/m/Y H:i" }} · {{ venta.get_estado_display }}</div>
+    </div>
+    <div class="d-flex gap-2">
+        {% if venta.cliente %}<a href="{% url 'customers:cliente_detalle' venta.cliente.pk %}" class="btn btn-outline-secondary btn-sm">← Volver al cliente</a>{% endif %}
+        {% if venta.estado == "DONE" %}<a href="{% url 'sales:venta_ticket' venta.pk %}" target="_blank" class="btn btn-outline-dark btn-sm">🧾 Ticket</a>{% endif %}
+        {% if falta_completar %}
+        <a href="{% url 'sales:venta_completar' venta.pk %}" class="btn btn-primary btn-sm">Completar pago/entrega</a>
+        {% endif %}
+        {% if es_admin %}
+        <form method="post" action="{% url 'sales:venta_eliminar' venta.pk %}" onsubmit="return confirm('¿Enviar esta venta a la papelera? Se puede recuperar por unos días. Si estaba confirmada, al eliminarse definitivamente su stock vuelve al inventario.');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger btn-sm">🗑 Eliminar</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body row g-3">
+        <div class="col-md-3">
+            <div class="text-muted small">Cliente</div>
+            <div>{{ venta.cliente|default:"Consumidor final" }}</div>
+        </div>
+        <div class="col-md-3">
+            <div class="text-muted small">Vendedor</div>
+            <div>{{ venta.vendedor.nombre|default:"—" }}</div>
+        </div>
+        <div class="col-md-3">
+            <div class="text-muted small">Forma de pago</div>
+            <div>
+                {% if venta.forma_pago %}{{ venta.get_forma_pago_display }}{% if venta.cuotas %} ({{ venta.cuotas }} cuotas){% endif %}{% else %}—{% endif %}
+                {% if venta.forma_pago_saldo %}<br><span class="text-muted small">Saldo: {{ venta.get_forma_pago_saldo_display }}{% if venta.cuotas_saldo %} ({{ venta.cuotas_saldo }} cuotas){% endif %}</span>{% endif %}
+            </div>
+        </div>
+        {% if venta.es_obra_social %}
+        <div class="col-md-3">
+            <div class="text-muted small">🏥 Obra social</div>
+            <div>
+                {% if venta.obra_social %}{{ venta.obra_social }}{% elif venta.cliente.obra_social %}{{ venta.cliente.obra_social }}{% else %}—{% endif %}
+                {% if not venta.obra_social_resuelta %}<br><span class="badge bg-warning text-dark">Pendiente de gestionar</span>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+        <div class="col-md-3">
+            <div class="text-muted small">Estado de entrega</div>
+            <div>
+                {% if venta.estado_entrega == "entregado" %}<span class="badge bg-success">Entregado</span>
+                {% elif venta.estado_entrega == "notificado" %}<span class="badge bg-info text-dark">Notificado</span>
+                {% else %}<span class="badge bg-warning text-dark">Pendiente</span>{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-header fw-bold">Productos</div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light"><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Promoción</th><th>Subtotal</th><th>Receta</th><th>Entregado</th></tr></thead>
+            <tbody>
+                {% for item in venta.items.all %}
+                <tr>
+                    <td>
+                        {{ item.producto }}
+                        {% if item.armazon_de_cliente %}<div class="small text-muted">🙋 armazón del cliente</div>
+                        {% elif item.armazon_venta_item %}<div class="small text-muted">🔗 armazón: {{ item.armazon_venta_item.producto }}</div>{% endif %}
+                    </td>
+                    <td>{{ item.cantidad }}</td>
+                    <td>
+                        {% if item.promocion and item.precio_unitario < item.producto.precio %}
+                        <span class="text-muted text-decoration-line-through small">${{ item.producto.precio }}</span>
+                        <span class="text-success">${{ item.precio_unitario }}</span>
+                        {% else %}${{ item.precio_unitario }}{% endif %}
+                    </td>
+                    <td>{{ item.promocion.nombre|default:"—" }}</td>
+                    <td>${{ item.subtotal }}</td>
+                    <td>
+                        {% if item.receta %}<a href="{% url 'prescriptions:receta_detalle' item.receta.pk %}">Ver receta</a>{% else %}—{% endif %}
+                        {% for orden in item.orden_laboratorio.all %}
+                        <br><a href="{% url 'prescriptions:orden_laboratorio_imprimir' orden.pk %}" target="_blank">🧾 Orden de laboratorio</a>
+                        {% endfor %}
+                    </td>
+                    <td>{% if item.entregado %}<span class="badge bg-success">Sí</span>{% else %}<span class="badge bg-warning text-dark">No</span>{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body row g-3">
+        <div class="col-md-3">
+            <div class="text-muted small">Total</div>
+            <div class="fs-4 fw-bold">${{ venta.total }}</div>
+        </div>
+        <div class="col-md-3">
+            <div class="text-muted small">Pagado</div>
+            <div>${{ venta.monto_pagado }}</div>
+        </div>
+        <div class="col-md-3">
+            <div class="text-muted small">Saldo</div>
+            <div class="{% if venta.saldo_pendiente > 0 %}text-danger fw-bold{% endif %}">${{ venta.saldo_pendiente }}</div>
+        </div>
+    </div>
+</div>
+
+{% if venta.observaciones %}
+<div class="card shadow-sm mt-3">
+    <div class="card-header fw-bold">📝 Observaciones</div>
+    <div class="card-body">
+        <p class="mb-0" style="white-space: pre-wrap;">{{ venta.observaciones }}</p>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

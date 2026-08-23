@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Papelera{% endblock %}
+{% block content %}
+
+{% if messages %}{% for m in messages %}<div class="alert alert-{{ m.tags|default:'info' }}">{{ m }}</div>{% endfor %}{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h3 class="mb-0">🗑️ Papelera</h3>
+    <a href="{% url 'home' %}" class="btn btn-outline-secondary btn-sm">← Volver</a>
+</div>
+<p class="text-muted">Lo que borrás queda acá y se puede recuperar. Se elimina definitivamente solo, <strong>{{ dias }} día{{ dias|pluralize }}</strong> después de borrado. Al eliminar una venta confirmada, su stock vuelve al inventario.</p>
+
+{% if total == 0 %}
+<div class="alert alert-secondary">La papelera está vacía. 🎉</div>
+{% endif %}
+
+{% comment %} Macro-ish: cada sección usa el mismo layout de tabla. {% endcomment %}
+{% for seccion in "x" %}{% endfor %}
+
+{% if recetas %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light fw-bold">📋 Recetas ({{ recetas|length }})</div>
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead class="table-light"><tr><th>Cliente</th><th>Fecha receta</th><th>Borrada</th><th class="text-end">Acciones</th></tr></thead>
+        <tbody>
+        {% for r in recetas %}
+        <tr>
+            <td>{{ r.cliente.nombre_completo|default:"—" }}</td>
+            <td>{{ r.fecha_recibido|date:"d/m/Y" }}{% if r.medico %} · {{ r.medico }}{% endif %}</td>
+            <td class="text-muted small">{{ r.eliminado_en|date:"d/m/Y H:i" }}</td>
+            <td class="text-end">
+                {% include "core/_acciones_papelera.html" with tipo="receta" obj=r %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table></div>
+</div>
+{% endif %}
+
+{% if productos %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light fw-bold">🕶️ Productos ({{ productos|length }})</div>
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead class="table-light"><tr><th>Producto</th><th>Categoría</th><th>Borrado</th><th class="text-end">Acciones</th></tr></thead>
+        <tbody>
+        {% for p in productos %}
+        <tr>
+            <td>{{ p }}</td>
+            <td>{{ p.categoria.nombre }}</td>
+            <td class="text-muted small">{{ p.eliminado_en|date:"d/m/Y H:i" }}</td>
+            <td class="text-end">
+                {% include "core/_acciones_papelera.html" with tipo="producto" obj=p %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table></div>
+</div>
+{% endif %}
+
+{% if ventas %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light fw-bold">🛒 Ventas ({{ ventas|length }})</div>
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead class="table-light"><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Estado</th><th class="text-end">Total</th><th>Borrada</th><th class="text-end">Acciones</th></tr></thead>
+        <tbody>
+        {% for v in ventas %}
+        <tr>
+            <td>#{{ v.pk }}</td>
+            <td>{{ v.fecha|date:"d/m/Y H:i" }}</td>
+            <td>{{ v.cliente|default:"Consumidor final" }}</td>
+            <td>{{ v.get_estado_display }}</td>
+            <td class="text-end">${{ v.total }}</td>
+            <td class="text-muted small">{{ v.eliminado_en|date:"d/m/Y H:i" }}</td>
+            <td class="text-end">
+                {% include "core/_acciones_papelera.html" with tipo="venta" obj=v %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table></div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card shadow-sm border-primary mb-4">
+    <div class="card-header bg-primary text-white fw-bold">🔍 Escanear producto (ver precio)</div>
+    <div class="card-body">
+        <div class="input-group">
+            <input type="text" id="codigo-input" class="form-control form-control-lg" placeholder="Esperando lectura del lector..." autofocus autocomplete="off">
+            {% include "partials/camera_scan_button.html" with input_id="codigo-input" %}
+        </div>
+        <div class="form-text">Escaneá el código (con el lector o con la cámara del celu) o tipealo y presioná Enter para ver el precio en un popup.</div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-precio" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modal-precio-titulo">Producto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modal-precio-body"></div>
+        </div>
+    </div>
+</div>
+
+<h4 class="mt-4 mb-3 text-muted fw-normal border-bottom pb-1">Día a día</h4>
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">🛒 Nueva venta</h5>
+                <p class="card-text">Escaneá los productos con el lector de código de barras, asociá recetas y confirmá la venta. El stock se descuenta automáticamente.</p>
+                <div class="acciones">
+                    <a href="{% url 'sales:nueva_venta' %}" class="btn btn-success">Iniciar venta</a>
+                    <a href="{% url 'sales:venta_pendientes_buscar' %}" class="btn btn-outline-secondary">🔎 Buscar venta pendiente</a>
+                    <a href="{% url 'sales:venta_obra_social_lista' %}" class="btn btn-outline-secondary">🏥 Ventas por obra social</a>
+                    {% if es_admin %}<a href="{% url 'sales:venta_lista' %}" class="btn btn-outline-secondary">📋 Historial de ventas</a>{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">📦 Ingreso de mercadería</h5>
+                <p class="card-text">Escaneá un producto existente para sumarle stock rápidamente.</p>
+                <div class="acciones">
+                    <a href="{% url 'inventory:ingreso_rapido' %}" class="btn btn-outline-primary">Ingresar stock</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">🕶️ Productos</h5>
+                <p class="card-text">{% if es_admin %}Alta, edición y baja de armazones, cristales, lentes de contacto y accesorios.{% else %}Consultar stock y precios.{% endif %}</p>
+                <div class="acciones">
+                    <a href="{% url 'inventory:producto_lista' %}" class="btn btn-outline-primary">Ver productos</a>
+                    <a href="{% url 'inventory:precio_lista' %}" class="btn btn-outline-secondary">💲 Ver precios</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">👤 Clientes</h5>
+                <p class="card-text">Ficha de clientes y su historial de recetas.</p>
+                <div class="acciones">
+                    <a href="{% url 'customers:cliente_lista' %}" class="btn btn-outline-primary">Ver clientes</a>
+                    <a href="{% url 'prescriptions:receta_nueva' %}" class="btn btn-outline-secondary">+ Nueva receta</a>
+                    <a href="{% url 'prescriptions:orden_laboratorio_lista' %}" class="btn btn-outline-secondary">🧾 Órdenes de laboratorio</a>
+                    <a href="{% url 'prescriptions:orden_laboratorio_nueva' %}" class="btn btn-outline-secondary">+ Nueva orden de laboratorio</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">👁️ Lentes de contacto</h5>
+                <p class="card-text">Agendá pruebas de lentes de contacto en un calendario y marcá cuáles se hicieron (y cuánto dejaron).</p>
+                <div class="acciones">
+                    <a href="{% url 'contact_lenses:agenda' %}" class="btn btn-outline-primary">Ver agenda</a>
+                    <a href="{% url 'contact_lenses:prueba_nueva' %}" class="btn btn-outline-secondary">+ Agendar prueba</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if es_admin %}
+<h4 class="mt-5 mb-3 text-muted fw-normal border-bottom pb-1">Administración</h4>
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">💰 Hacer la caja</h5>
+                <p class="card-text">Suma el dinero que ingresó en el día, discriminado por forma de pago (efectivo, tarjeta, transferencia, QR) y el total.</p>
+                <div class="acciones">
+                    <a href="{% url 'sales:caja_del_dia' %}" class="btn btn-success">Hacer la caja</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">📊 Estadísticas</h5>
+                <p class="card-text">Ventas por vendedor/a, productos y marcas más vendidos, y accesos al historial de movimientos.</p>
+                <div class="acciones">
+                    <a href="{% url 'sales:dashboard' %}" class="btn btn-outline-primary">Ver estadísticas</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">↩️ Devoluciones</h5>
+                <p class="card-text">Historial de devoluciones registradas.</p>
+                <div class="acciones">
+                    <a href="{% url 'sales:devolucion_lista' %}" class="btn btn-outline-primary">Ver historial</a>
+                    <a href="{% url 'core:papelera' %}" class="btn btn-outline-secondary">🗑️ Papelera</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">🏷️ Promociones y financiación</h5>
+                <p class="card-text">Descuentos por producto, marca o categoría, y promos de cuotas de bancos.</p>
+                <div class="acciones">
+                    <a href="{% url 'inventory:promocion_lista' %}" class="btn btn-outline-primary">Promociones / financiación</a>
+                    <a href="{% url 'inventory:banco_nuevo' %}" class="btn btn-outline-secondary">+ Agregar banco</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">⚙️ Marcas, categorías, obras sociales y vendedores</h5>
+                <p class="card-text">Configuración de marcas, categorías de producto, obras sociales, proveedores y el listado de empleados que atienden ventas.</p>
+                <div class="acciones">
+                    <a href="{% url 'inventory:marca_lista' %}" class="btn btn-outline-secondary">Marcas</a>
+                    <a href="{% url 'inventory:categoria_lista' %}" class="btn btn-outline-secondary">Categorías</a>
+                    <a href="{% url 'customers:obra_social_lista' %}" class="btn btn-outline-secondary">🏥 Obras sociales</a>
+                    <a href="{% url 'inventory:proveedor_lista' %}" class="btn btn-outline-secondary">Proveedores</a>
+                    <a href="{% url 'sales:vendedor_lista' %}" class="btn btn-outline-secondary">Vendedores</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+    const codigoInput = document.getElementById('codigo-input');
+    const modalPrecio = new bootstrap.Modal(document.getElementById('modal-precio'));
+    const modalPrecioTitulo = document.getElementById('modal-precio-titulo');
+    const modalPrecioBody = document.getElementById('modal-precio-body');
+
+    function consultar() {
+        const codigo = codigoInput.value.trim();
+        codigoInput.value = '';
+        if (!codigo) return;
+        fetch(`{% url "inventory:consultar_precio" %}?codigo=${encodeURIComponent(codigo)}`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.encontrado) {
+                    modalPrecioTitulo.textContent = 'Producto no encontrado';
+                    modalPrecioBody.innerHTML = `<p>No se encontró ningún producto con el código <strong>${codigo}</strong>.</p>`;
+                    modalPrecio.show();
+                    return;
+                }
+                modalPrecioTitulo.textContent = data.producto;
+                modalPrecioBody.innerHTML = `
+                    <p class="mb-1"><strong>Marca:</strong> ${data.marca} · <strong>Modelo:</strong> ${data.modelo}</p>
+                    <p class="mb-1"><strong>Categoría:</strong> ${data.categoria} · <strong>Color:</strong> ${data.color}</p>
+                    <p class="mb-1"><strong>Stock disponible:</strong> ${data.stock_actual}</p>
+                    <p class="display-6 fw-bold text-success mt-3 mb-0">$${data.precio}</p>`;
+                modalPrecio.show();
+            });
+    }
+
+    codigoInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); consultar(); } });
+    document.getElementById('modal-precio').addEventListener('hidden.bs.modal', () => codigoInput.focus());
+    window.addEventListener('load', () => codigoInput.focus());
+})();
+</script>
+{% endblock %}

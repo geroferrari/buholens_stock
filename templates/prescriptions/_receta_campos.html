@@ -1,0 +1,167 @@
+{% load form_extras %}
+<div class="card shadow-sm mb-3">
+    <div class="card-header fw-bold">Datos generales</div>
+    <div class="card-body row g-3">
+        {% if mostrar_cliente %}
+        <div class="col-md-4 position-relative">
+            <label class="form-label">{{ form|field_label:"cliente" }}</label>
+            {{ form.cliente.as_hidden }}
+            <input type="text" id="cliente-buscar" class="form-control" placeholder="Buscar por nombre, apellido o DNI..." autocomplete="off">
+            <div id="cliente-resultados" class="list-group position-absolute w-100 shadow-sm" style="z-index:1000; max-height:240px; overflow-y:auto; display:none;"></div>
+            <div id="cliente-seleccionado" class="d-flex flex-wrap gap-2 mt-2">
+                {% if cliente_seleccionado %}
+                <span class="badge text-bg-primary d-flex align-items-center gap-2 py-2 px-3 fs-6 fw-normal">
+                    {{ cliente_seleccionado.nombre_completo|default:cliente_seleccionado.email|default:"Cliente sin nombre" }}
+                    <button type="button" class="btn-close btn-close-white btn-quitar-cliente-receta" style="font-size:0.6rem;" aria-label="Quitar cliente"></button>
+                </span>
+                {% endif %}
+            </div>
+            {% for error in form|field_errors:"cliente" %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            <a href="#" id="toggle-cliente-nuevo" class="d-inline-block mt-1 small text-decoration-none">+ No lo encuentro, Cargar cliente nuevo</a>
+            <div id="form-cliente-nuevo" class="mt-2 d-none border rounded p-2 bg-light-subtle">
+                <div class="row g-2">
+                    <div class="col-6"><input type="text" id="nc-nombre" class="form-control form-control-sm" placeholder="Nombre"></div>
+                    <div class="col-6"><input type="text" id="nc-apellido" class="form-control form-control-sm" placeholder="Apellido"></div>
+                    <div class="col-6"><input type="text" id="nc-dni" class="form-control form-control-sm" placeholder="DNI" inputmode="numeric" pattern="[0-9]*"></div>
+                    <div class="col-6"><input type="text" id="nc-telefono" class="form-control form-control-sm" placeholder="Teléfono" inputmode="numeric" pattern="[0-9]*"></div>
+                    <div class="col-12"><input type="email" id="nc-email" class="form-control form-control-sm" placeholder="Email (opcional)"></div>
+                    <div class="col-12"><input type="text" id="nc-direccion" class="form-control form-control-sm" placeholder="Dirección (opcional)"></div>
+                    <div class="col-12"><button type="button" id="btn-guardar-cliente-nuevo" class="btn btn-sm btn-success">Guardar y usar este cliente</button></div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        {{ form.cliente.as_hidden }}
+        {% endif %}
+        <div class="col-md-4 position-relative">
+            <label class="form-label">{{ form|field_label:"medico" }}</label>
+            {{ form.medico.as_hidden }}
+            <input type="text" id="medico-buscar" class="form-control" placeholder="Buscar médico..." autocomplete="off" value="{{ medico_seleccionado.nombre|default:'' }}">
+            <div id="medico-resultados" class="list-group position-absolute w-100 shadow-sm" style="z-index:1000; max-height:240px; overflow-y:auto; display:none;"></div>
+            <div id="medico-seleccionado" class="d-flex flex-wrap gap-2 mt-2">
+                {% if medico_seleccionado %}
+                <span class="badge text-bg-primary d-flex align-items-center gap-2 py-2 px-3 fs-6 fw-normal">
+                    {{ medico_seleccionado.nombre }}
+                    <button type="button" class="btn-close btn-close-white btn-quitar-medico-receta" style="font-size:0.6rem;" aria-label="Quitar médico"></button>
+                </span>
+                {% endif %}
+            </div>
+            {% for error in form|field_errors:"medico" %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="col-md-4 position-relative">
+            <label class="form-label">{{ form|field_label:"obra_social" }}</label>
+            {{ form.obra_social.as_hidden }}
+            <input type="text" id="obra-social-buscar" class="form-control" placeholder="Buscar obra social..." autocomplete="off" value="{{ obra_social_seleccionada.nombre|default:'' }}">
+            <div id="obra-social-resultados" class="list-group position-absolute w-100 shadow-sm" style="z-index:1000; max-height:240px; overflow-y:auto; display:none;"></div>
+            <div id="obra-social-seleccionado" class="d-flex flex-wrap gap-2 mt-2">
+                {% if obra_social_seleccionada %}
+                <span class="badge text-bg-primary d-flex align-items-center gap-2 py-2 px-3 fs-6 fw-normal">
+                    {{ obra_social_seleccionada.nombre }}
+                    <button type="button" class="btn-close btn-close-white btn-quitar-obra-social-receta" style="font-size:0.6rem;" aria-label="Quitar obra social"></button>
+                </span>
+                {% endif %}
+            </div>
+            {% for error in form|field_errors:"obra_social" %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+        </div>
+        {% for name in "fecha_recibido"|split %}
+        <div class="col-md-4">
+            <label class="form-label">{{ form|field_label:name }}</label>
+            {{ form|field:name }}
+            {% for error in form|field_errors:name %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-header fw-bold">Lejos</div>
+    <div class="card-body row g-3">
+        <div class="col-12 fw-semibold text-muted">Ojo derecho</div>
+        {% for name in "lejos_od_esfera,lejos_od_cilindro,lejos_od_eje,lejos_od_adicion"|split %}
+        <div class="col-md-3">
+            <label class="form-label">{{ form|field_label:name }}</label>
+            {% if name|es_campo_con_signo %}<div class="input-group campo-con-signo"><span class="input-group-text"></span>{{ form|field:name }}</div>
+            {% else %}{{ form|field:name }}{% endif %}
+        </div>
+        {% endfor %}
+        <div class="col-12 fw-semibold text-muted mt-2">Ojo izquierdo</div>
+        {% for name in "lejos_oi_esfera,lejos_oi_cilindro,lejos_oi_eje,lejos_oi_adicion"|split %}
+        <div class="col-md-3">
+            <label class="form-label">{{ form|field_label:name }}</label>
+            {% if name|es_campo_con_signo %}<div class="input-group campo-con-signo"><span class="input-group-text"></span>{{ form|field:name }}</div>
+            {% else %}{{ form|field:name }}{% endif %}
+        </div>
+        {% endfor %}
+        {% for name in "lejos_dnp,lejos_tipo_cristal,lejos_color_cristal,lejos_tratamientos"|split %}
+        <div class="col-md-3"><label class="form-label">{{ form|field_label:name }}</label>{{ form|field:name }}</div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-header fw-bold">Cerca</div>
+    <div class="card-body row g-3">
+        <div class="col-12 fw-semibold text-muted">Ojo derecho</div>
+        {% for name in "cerca_od_esfera,cerca_od_cilindro,cerca_od_eje"|split %}
+        <div class="col-md-4">
+            <label class="form-label">{{ form|field_label:name }}</label>
+            {% if name|es_campo_con_signo %}<div class="input-group campo-con-signo"><span class="input-group-text"></span>{{ form|field:name }}</div>
+            {% else %}{{ form|field:name }}{% endif %}
+        </div>
+        {% endfor %}
+        <div class="col-12 fw-semibold text-muted mt-2">Ojo izquierdo</div>
+        {% for name in "cerca_oi_esfera,cerca_oi_cilindro,cerca_oi_eje"|split %}
+        <div class="col-md-4">
+            <label class="form-label">{{ form|field_label:name }}</label>
+            {% if name|es_campo_con_signo %}<div class="input-group campo-con-signo"><span class="input-group-text"></span>{{ form|field:name }}</div>
+            {% else %}{{ form|field:name }}{% endif %}
+        </div>
+        {% endfor %}
+        {% for name in "cerca_dnp,cerca_tipo_cristal,cerca_color_cristal,cerca_tratamientos"|split %}
+        <div class="col-md-3"><label class="form-label">{{ form|field_label:name }}</label>{{ form|field:name }}</div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-header fw-bold">Bifocal / Multifocal</div>
+    <div class="card-body row g-3">
+        {% for name in "es_bifocal_multifocal,di_lejos,di_cerca,altura"|split %}
+        <div class="col-md-3"><label class="form-label">{{ form|field_label:name }}</label>{{ form|field:name }}</div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-header fw-bold">Lentes de contacto</div>
+    <div class="card-body row g-3">
+        <div class="col-12">
+            <div class="form-check form-switch fs-5">
+                {{ form.es_lentes_contacto }}
+                <label class="form-check-label" for="id_es_lentes_contacto">¿Es una receta de lentes de contacto?</label>
+            </div>
+        </div>
+        <div class="col-md-4 {% if not form.es_lentes_contacto.value %}d-none{% endif %}" id="wrap-marca-lentes-contacto">
+            <label class="form-label">{{ form|field_label:"marca_lentes_contacto" }}</label>
+            {{ form|field:"marca_lentes_contacto" }}
+            {% for error in form|field_errors:"marca_lentes_contacto" %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-header fw-bold">Otros</div>
+    <div class="card-body row g-3">
+        <div class="col-12"><label class="form-label">{{ form|field_label:"observaciones" }}</label>{{ form|field:"observaciones" }}</div>
+        <div class="col-md-6">
+            <label class="form-label">{{ form|field_label:"archivo" }}</label>
+            {{ form|field:"archivo" }}
+            {% for error in form|field_errors:"archivo" %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            <div class="mt-2">
+                <button type="button" id="btn-foto-receta" class="btn btn-outline-secondary btn-sm">📷 Sacar foto de la receta con el celu</button>
+                <input type="file" id="input-foto-receta" accept="image/*" capture="environment" class="d-none">
+            </div>
+            <img id="preview-foto-receta" class="d-none mt-2 rounded border" style="max-width: 100%; max-height: 300px;">
+        </div>
+    </div>
+</div>

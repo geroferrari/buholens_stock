@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Configuración de la óptica{% endblock %}
+{% block content %}
+
+<h3 class="mb-1">⚙️ Configuración de la óptica</h3>
+<p class="text-muted">
+    Estos datos son los que la app usa en la barra superior, el ticket de venta,
+    las órdenes de laboratorio y los avisos al celular.
+</p>
+
+<form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-header">Identidad</div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% for field in form.campos_identidad %}{% include "core/_campo_config.html" %}{% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-header">Teléfonos de clientes</div>
+        <div class="card-body">
+            <p class="text-muted small">
+                Sirve para completar los números que se cargan a medias y para armar
+                bien los links de WhatsApp.
+            </p>
+            <div class="row g-3">
+                {% for field in form.campos_telefono %}{% include "core/_campo_config.html" %}{% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-success">Guardar</button>
+        <a href="{% url 'gestion' %}" class="btn btn-outline-secondary">Volver</a>
+    </div>
+</form>
+
+<div class="alert alert-secondary mt-3 small mb-0">
+    El ícono de la app en el celular (pantalla de inicio / notificaciones) se toma
+    del logo si hay uno cargado. Si lo cambiás, puede tardar en actualizarse hasta
+    que se vuelva a agregar la app a la pantalla de inicio.
+</div>
+
+{% endblock %}

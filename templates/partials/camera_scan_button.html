@@ -1,0 +1,70 @@
+<!-- Botón "📷 Escanear" + modal con la cámara, para leer códigos de barras
+     desde el celu (pensado sobre todo para iPhone/Safari, por eso usa la
+     librería ZXing en vez de la BarcodeDetector nativa que Safari no soporta).
+     Se incluye pasando input_id, dentro de un .input-group junto al input
+     de código de barras que se quiere completar. -->
+<button type="button" class="btn btn-outline-primary" id="btn-camera-scan-{{ input_id }}" title="Escanear con la cámara">📷</button>
+
+<div class="modal fade" id="modal-camera-scan-{{ input_id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Escanear código de barras</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <video id="camera-scan-video-{{ input_id }}" class="w-100 rounded bg-dark" muted playsinline></video>
+                <div id="camera-scan-error-{{ input_id }}" class="text-danger small mt-2 d-none"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script>
+(function() {
+    const inputId = '{{ input_id }}';
+    const btn = document.getElementById('btn-camera-scan-' + inputId);
+    const targetInput = document.getElementById(inputId);
+    const modalEl = document.getElementById('modal-camera-scan-' + inputId);
+    const videoEl = document.getElementById('camera-scan-video-' + inputId);
+    const errorEl = document.getElementById('camera-scan-error-' + inputId);
+    let reader = null;
+
+    function detenerCamara() {
+        if (reader) {
+            reader.reset();
+            reader = null;
+        }
+    }
+
+    function onDetectado(codigo) {
+        detenerCamara();
+        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+        targetInput.value = codigo;
+        targetInput.focus();
+        targetInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    }
+
+    btn.addEventListener('click', () => {
+        errorEl.classList.add('d-none');
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    });
+
+    modalEl.addEventListener('shown.bs.modal', () => {
+        reader = new ZXing.BrowserMultiFormatReader();
+        reader.decodeFromConstraints(
+            { video: { facingMode: { ideal: 'environment' } }, audio: false },
+            videoEl,
+            (result, err) => {
+                if (result) onDetectado(result.getText());
+            }
+        ).catch((e) => {
+            errorEl.textContent = 'No se pudo acceder a la cámara: ' + e.message;
+            errorEl.classList.remove('d-none');
+        });
+    });
+
+    modalEl.addEventListener('hidden.bs.modal', detenerCamara);
+})();
+</script>

@@ -1,0 +1,14 @@
+{% load static %}{
+  "name": "{{ optica.nombre|escapejs }} — Stockero",
+  "short_name": "{{ optica.nombre_para_icono|escapejs }}",
+  "description": "Gestión de stock, ventas y recetas de la óptica.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f7fb",
+  "theme_color": "{{ optica.color_primario|escapejs }}",
+  "icons": [
+    {"src": "{% if optica.logo %}{{ optica.logo.url|escapejs }}{% else %}{% static 'img/icon-192.png' %}{% endif %}", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "{% if optica.logo %}{{ optica.logo.url|escapejs }}{% else %}{% static 'img/icon-512.png' %}{% endif %}", "sizes": "512x512", "type": "image/png", "purpose": "any"}
+  ]
+}

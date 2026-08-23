@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h3 class="mb-0">{{ title }}</h3>
+    <div class="d-flex gap-2">
+        {% if es_admin %}
+        <div class="dropdown">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">⚙️ Columnas</button>
+            <div class="dropdown-menu dropdown-menu-end p-3" style="min-width: 260px;">
+                <form method="post" action="{% url 'inventory:producto_columnas' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <div style="max-height: 320px; overflow-y: auto;">
+                        {% for col in columnas_disponibles %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="columnas" value="{{ col.key }}" id="col-{{ col.key }}" {% if col.activa %}checked{% endif %}>
+                            <label class="form-check-label" for="col-{{ col.key }}">{{ col.label }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-primary mt-2 w-100">Aplicar</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+        {% if stock_bajo_activo %}
+        <a href="{% url 'inventory:producto_lista' %}{% if search_query %}?q={{ search_query }}{% endif %}" class="btn btn-warning">⚠️ Mostrando solo stock bajo — ver todos</a>
+        {% elif total_stock_bajo %}
+        <a href="?stock_bajo=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-outline-warning">⚠️ Stock bajo ({{ total_stock_bajo }})</a>
+        {% endif %}
+        {% if export_csv %}
+        <a href="?export=csv{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-outline-secondary">⬇️ Exportar CSV</a>
+        {% endif %}
+        <button type="button" id="btn-imprimir-seleccion" class="btn btn-outline-dark" disabled>🖨️ Imprimir etiquetas seleccionadas</button>
+        {% if es_admin %}
+        <button type="button" id="btn-actualizar-precios-seleccion" class="btn btn-outline-success" disabled>💲 Actualizar precios</button>
+        <button type="button" id="btn-eliminar-seleccion" class="btn btn-outline-danger" disabled>🗑️ Eliminar seleccionados</button>
+        {% endif %}
+        {% if create_url %}<a href="{{ create_url }}" class="btn btn-primary">+ Nuevo</a>{% endif %}
+    </div>
+</div>
+
+{% if es_admin %}
+<form method="post" action="{% url 'inventory:producto_eliminar_masivo' %}" id="form-eliminar-seleccion" class="d-none">
+    {% csrf_token %}
+    <input type="hidden" name="ids" id="ids-eliminar">
+</form>
+{% include "partials/confirm_modal.html" with modal_id="modal-eliminar-seleccion" modal_title="¿Eliminar productos seleccionados?" modal_confirmar_label="Sí, eliminar" %}
+
+<form method="post" action="{% url 'inventory:producto_actualizar_precios' %}" id="form-actualizar-precios">
+    {% csrf_token %}
+    <input type="hidden" name="ids" id="ids-actualizar-precios">
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <div class="modal fade" id="modal-actualizar-precios" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Actualizar precios</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="modal-precios-cantidad" class="text-muted"></p>
+                    <label class="form-label">¿Cómo se actualiza?</label>
+                    <select name="modo" class="form-select mb-3">
+                        <option value="porcentaje">Porcentaje (%)</option>
+                        <option value="monto">Monto fijo ($)</option>
+                    </select>
+                    <label class="form-label">Valor (usá negativo para bajar el precio, ej: -10)</label>
+                    <input type="text" name="valor" class="form-control mb-3" placeholder="Ej: 10 o -10" required>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" name="actualizar_costo" value="1" id="chk-actualizar-costo">
+                        <label class="form-check-label" for="chk-actualizar-costo">Aplicar el mismo cambio al costo</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Actualizar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endif %}
+
+{% if messages %}
+{% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
+{% endif %}
+
+<form method="get" class="row g-2 mb-3 align-items-end">
+    <div class="col-auto" style="min-width: 260px;">
+        <label class="form-label small mb-1">Buscar</label>
+        <input type="text" name="q" class="form-control" placeholder="{{ search_placeholder }}" value="{{ search_query }}">
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-1">Marca</label>
+        <select name="marca" class="form-select">
+            <option value="">— todas —</option>
+            {% for m in marcas %}
+            <option value="{{ m.id }}" {% if marca_seleccionada == m.id|stringformat:"s" %}selected{% endif %}>{{ m.nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-1">Proveedor</label>
+        <select name="proveedor" class="form-select">
+            <option value="">— todos —</option>
+            {% for p in proveedores %}
+            <option value="{{ p.id }}" {% if proveedor_seleccionado == p.id|stringformat:"s" %}selected{% endif %}>{{ p.nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-1">Categoría</label>
+        <select name="categoria" class="form-select">
+            <option value="">— todas —</option>
+            {% for c in categorias %}
+            <option value="{{ c.id }}" {% if categoria_seleccionada == c.id|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-outline-secondary" type="submit">Filtrar</button>
+    </div>
+</form>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th><input type="checkbox" id="check-all"></th>
+                    <th></th>
+                    {% for col in columnas %}
+                    <th>
+                        {% if col.sortable %}
+                        <a href="{{ col.url }}" class="text-decoration-none text-reset">
+                            {{ col.label }}
+                            {% if col.activa %}{% if col.dir == "asc" %}▲{% else %}▼{% endif %}{% endif %}
+                        </a>
+                        {% else %}
+                        {{ col.label }}
+                        {% endif %}
+                    </th>
+                    {% endfor %}
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr {% if row.stock_bajo %}class="table-warning"{% endif %}>
+                    <td>
+                        <input type="checkbox" class="check-producto" value="{{ row.id }}">
+                        {% if row.stock_bajo %}<span title="Stock igual o por debajo del mínimo">⚠️</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if row.foto_url %}
+                        <img src="{{ row.foto_url }}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:4px;">
+                        {% else %}
+                        <span class="text-muted" style="font-size:1.3rem;">🕶️</span>
+                        {% endif %}
+                    </td>
+                    {% for cell in row.cells %}<td>{{ cell }}</td>{% endfor %}
+                    <td class="text-end text-nowrap">
+                        <a href="{% url 'inventory:etiquetas' %}?ids={{ row.id }}" class="btn btn-sm btn-outline-dark" target="_blank">Etiqueta</a>
+                        {% if row.edit_url %}<a href="{{ row.edit_url }}" class="btn btn-sm btn-outline-secondary">Editar</a>{% endif %}
+                        {% if row.delete_url %}<a href="{{ row.delete_url }}" class="btn btn-sm btn-outline-danger">Eliminar</a>{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="{{ headers|length|add:3 }}" class="text-center text-muted py-4">No hay productos todavía.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if is_paginated %}
+<nav class="mt-3">
+    <ul class="pagination">
+        {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?{{ querystring }}&page={{ page_obj.previous_page_number }}">Anterior</a></li>{% endif %}
+        <li class="page-item disabled"><span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span></li>
+        {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?{{ querystring }}&page={{ page_obj.next_page_number }}">Siguiente</a></li>{% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const checkAll = document.getElementById('check-all');
+const checks = () => document.querySelectorAll('.check-producto');
+const btnImprimir = document.getElementById('btn-imprimir-seleccion');
+const btnEliminar = document.getElementById('btn-eliminar-seleccion');
+const btnActualizarPrecios = document.getElementById('btn-actualizar-precios-seleccion');
+
+function actualizarBoton() {
+    const seleccionados = Array.from(checks()).filter(c => c.checked);
+    btnImprimir.disabled = seleccionados.length === 0;
+    if (btnEliminar) btnEliminar.disabled = seleccionados.length === 0;
+    if (btnActualizarPrecios) btnActualizarPrecios.disabled = seleccionados.length === 0;
+}
+
+checkAll.addEventListener('change', () => {
+    checks().forEach(c => c.checked = checkAll.checked);
+    actualizarBoton();
+});
+checks().forEach(c => c.addEventListener('change', actualizarBoton));
+
+btnImprimir.addEventListener('click', () => {
+    const ids = Array.from(checks()).filter(c => c.checked).map(c => c.value);
+    window.open(`{% url 'inventory:etiquetas' %}?ids=${ids.join(',')}`, '_blank');
+});
+
+if (btnEliminar) {
+    btnEliminar.addEventListener('click', () => {
+        const ids = Array.from(checks()).filter(c => c.checked).map(c => c.value);
+        if (ids.length === 0) return;
+        document.getElementById('modal-eliminar-seleccion-mensaje').textContent =
+            `¿Eliminar ${ids.length} producto(s) seleccionado(s)? Esta acción no se puede deshacer.`;
+        document.getElementById('ids-eliminar').value = ids.join(',');
+        new bootstrap.Modal(document.getElementById('modal-eliminar-seleccion')).show();
+    });
+    document.getElementById('modal-eliminar-seleccion-confirmar').addEventListener('click', () => {
+        document.getElementById('form-eliminar-seleccion').submit();
+    });
+}
+
+if (btnActualizarPrecios) {
+    btnActualizarPrecios.addEventListener('click', () => {
+        const ids = Array.from(checks()).filter(c => c.checked).map(c => c.value);
+        if (ids.length === 0) return;
+        document.getElementById('modal-precios-cantidad').textContent =
+            `Se va a actualizar el precio de ${ids.length} producto(s) seleccionado(s).`;
+        document.getElementById('ids-actualizar-precios').value = ids.join(',');
+        new bootstrap.Modal(document.getElementById('modal-actualizar-precios')).show();
+    });
+}
+</script>
+{% endblock %}

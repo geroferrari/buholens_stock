@@ -1,0 +1,56 @@
+name: Tests
+
+# Corre la suite de tests en cada push y en cada Pull Request.
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # Postgres de verdad (mismo motor que producción/Railway), levantado como
+    # servicio para que los tests corran contra el mismo backend que usás.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: stockero
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # Variables que settings.py espera (normalmente vienen del .env, que no
+    # existe en CI). Son valores dummy solo para correr los tests: NO son
+    # secretos de producción.
+    env:
+      SECRET_KEY: ci-secret-key-solo-para-tests
+      DEBUG: "False"
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/stockero
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14.4"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libjpeg-dev \
+            zlib1g-dev
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Correr tests
+        run: python manage.py test --verbosity=2

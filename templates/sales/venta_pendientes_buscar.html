@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Buscar venta pendiente{% endblock %}
+{% block content %}
+
+<h3 class="mb-3">🔎 Buscar venta pendiente</h3>
+<p class="text-muted">Ventas ya confirmadas que quedaron con saldo pendiente de pago y/o sin entregar (reservas, encargos con cristales a medida, etc). Entrá a "Completar" para avisar por WhatsApp o marcar la entrega.</p>
+
+<form method="get" class="mb-4">
+    <div class="input-group" style="max-width: 500px;">
+        <input type="text" name="q" class="form-control" placeholder="Buscar por nombre o DNI del cliente..." value="{{ query }}" autofocus>
+        <button class="btn btn-primary" type="submit">Buscar</button>
+    </div>
+</form>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>N°</th><th>Fecha</th><th>Cliente</th><th>Total</th>
+                    <th>Pagado</th><th>Saldo</th><th>Estado</th><th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for venta in ventas %}
+                <tr>
+                    <td>#{{ venta.pk }}</td>
+                    <td>{{ venta.fecha|date:"d/m/Y H:i" }}</td>
+                    <td>{{ venta.cliente|default:"Consumidor final" }}</td>
+                    <td>${{ venta.total }}</td>
+                    <td>${{ venta.monto_pagado }}</td>
+                    <td class="{% if venta.saldo_pendiente > 0 %}text-danger fw-bold{% endif %}">${{ venta.saldo_pendiente }}</td>
+                    <td>
+                        {% if venta.estado_entrega == "entregado" %}<span class="badge bg-success">Entregado</span>
+                        {% elif venta.estado_entrega == "notificado" %}<span class="badge bg-info text-dark">Notificado</span>
+                        {% else %}<span class="badge bg-warning text-dark">Pendiente</span>{% endif %}
+                    </td>
+                    <td><a href="{% url 'sales:venta_completar' venta.pk %}" class="btn btn-sm btn-primary">Completar</a></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        {% if query %}No se encontraron ventas pendientes para esa búsqueda.{% else %}No hay ventas pendientes de pago o entrega. 🎉{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

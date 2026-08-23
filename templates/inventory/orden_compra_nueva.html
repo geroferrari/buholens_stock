@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Nueva orden de compra{% endblock %}
+{% block content %}
+
+<h3 class="mb-3">Nueva orden de compra</h3>
+
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>
+{% endfor %}
+{% endif %}
+
+<div class="card shadow-sm" style="max-width: 500px;">
+    <div class="card-body">
+        <p>Elegí a qué proveedor le vas a hacer el pedido. Vas a ver su catálogo de productos con el stock actual para elegir qué pedir.</p>
+        <form method="post">
+            {% csrf_token %}
+            <label class="form-label">Proveedor</label>
+            <select name="proveedor_id" class="form-select mb-3" required>
+                <option value="">Elegí un proveedor...</option>
+                {% for p in proveedores %}
+                <option value="{{ p.id }}">{{ p.nombre }}</option>
+                {% endfor %}
+            </select>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Empezar pedido</button>
+                <a href="{% url 'inventory:orden_compra_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

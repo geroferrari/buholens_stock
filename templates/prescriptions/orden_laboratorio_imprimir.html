@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Orden de trabajo #{{ orden.id }}</title>
+<style>
+    body { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; margin: 0; padding: 16px; font-size: 12px; }
+    .toolbar { text-align: center; margin-bottom: 16px; }
+    .toolbar button { font-size: 1rem; padding: 8px 16px; }
+
+    .hoja { display: flex; border: 1px solid #999; max-width: 900px; margin: 0 auto; }
+    .columna { width: 50%; padding: 14px; }
+    .columna:first-child { border-right: 1px dashed #999; }
+
+    .encabezado { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .encabezado img { height: 44px; }
+    .encabezado .datos-optica { font-size: 9.5px; line-height: 1.3; color: #333; }
+    .titulo-copia { text-align: center; font-weight: bold; letter-spacing: 1px; margin: 6px 0 10px; padding: 3px; background: #eee; }
+    .numero { text-align: right; font-size: 11px; color: #555; margin-bottom: 6px; }
+
+    .campo { border-bottom: 1px dotted #999; padding: 3px 0; margin-bottom: 4px; }
+    .campo .label { color: #555; margin-right: 4px; }
+
+    .receta-titulo { font-weight: bold; margin-top: 10px; }
+    table.receta { width: 100%; border-collapse: collapse; margin-top: 4px; }
+    table.receta th, table.receta td { border: 1px solid #ccc; padding: 3px 5px; font-size: 11px; text-align: center; }
+    table.receta th { background: #f2f2f2; }
+
+    table.detalle { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    table.detalle th, table.detalle td { border: 1px solid #ccc; padding: 4px 6px; font-size: 11px; }
+    table.detalle th { background: #f2f2f2; }
+
+    .totales { margin-top: 10px; width: 60%; margin-left: auto; }
+    .totales td { padding: 3px 6px; font-size: 12px; }
+    .totales .label { color: #555; }
+    .totales .valor { text-align: right; font-weight: bold; }
+
+    .aviso { margin-top: 14px; font-size: 9.5px; color: #666; border: 1px solid #ddd; padding: 6px; }
+
+    @media print {
+        .toolbar { display: none; }
+        body { padding: 0; }
+        .hoja { border: none; max-width: none; }
+    }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+    <button onclick="window.print()">🖨️ Imprimir orden</button>
+</div>
+
+<div class="hoja">
+    <!-- ===== Copia para el laboratorio ===== -->
+    <div class="columna">
+        <div class="encabezado">
+            {% if optica.logo %}<img src="{{ optica.logo.url }}" alt="{{ optica.nombre }}">{% endif %}
+            <div class="datos-optica">
+                <strong>{{ optica.nombre }}</strong><br>
+                {{ optica.datos_contacto|join:" · " }}
+            </div>
+        </div>
+        <div class="numero">N° {{ orden.id }}</div>
+        <div class="titulo-copia">ORDEN DE TRABAJO — LABORATORIO</div>
+
+        <div class="campo"><span class="label">Nombre:</span>{{ orden.cliente.nombre_completo|default:"—" }}</div>
+        <div class="campo"><span class="label">Dirección:</span>{{ orden.cliente.direccion|default:"" }}</div>
+        <div class="campo"><span class="label">Tel:</span>{{ orden.cliente.telefono|default:"" }}</div>
+        <div class="campo"><span class="label">Fecha de Ingreso:</span>{{ orden.creado|date:"d/m/Y" }}</div>
+        <div class="campo"><span class="label">Fecha de Entrega:</span>____/____/______</div>
+
+        <div class="campo"><span class="label">Armazón:</span>
+            {% if orden.armazon_de_cliente %}Provisto por el cliente
+            {% elif orden.armazon %}{{ orden.armazon }}
+            {% else %}—{% endif %}
+        </div>
+        <div class="campo"><span class="label">Cristal:</span>{{ orden.producto }}</div>
+        {% if orden.observaciones %}
+        <div class="campo"><span class="label">Observaciones de la orden:</span>{{ orden.observaciones }}</div>
+        {% endif %}
+
+        <div class="receta-titulo">Rp/</div>
+        {% for grupo in grupos %}
+        {% if "Lejos" in grupo.titulo or "Cerca" in grupo.titulo %}
+        <table class="receta">
+            <tr><th colspan="2">{{ grupo.titulo }}</th></tr>
+            {% for fila in grupo.filas %}
+            <tr><td>{{ fila.label }}</td><td>{{ fila.valor }}</td></tr>
+            {% endfor %}
+        </table>
+        {% endif %}
+        {% endfor %}
+        {% for grupo in grupos %}
+        {% if grupo.titulo == "Otros" or grupo.titulo == "Bifocal / Multifocal" %}
+        {% for fila in grupo.filas %}
+        <div class="campo"><span class="label">{{ fila.label }}:</span>{{ fila.valor }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- ===== Copia para el cliente ===== -->
+    <div class="columna">
+        <div class="encabezado">
+            {% if optica.logo %}<img src="{{ optica.logo.url }}" alt="{{ optica.nombre }}">{% endif %}
+            <div class="datos-optica">
+                <strong>{{ optica.nombre }}</strong><br>
+                {{ optica.datos_contacto|join:" · " }}
+            </div>
+        </div>
+        <div class="numero">N° {{ orden.id }}</div>
+        <div class="titulo-copia">ORDEN DE TRABAJO — CLIENTE</div>
+
+        <div class="campo"><span class="label">Nombre:</span>{{ orden.cliente.nombre_completo|default:"—" }}</div>
+        <div class="campo"><span class="label">Dirección:</span>{{ orden.cliente.direccion|default:"" }}</div>
+        <div class="campo"><span class="label">Tel:</span>{{ orden.cliente.telefono|default:"" }}</div>
+        <div class="campo"><span class="label">Fecha de Ingreso:</span>{{ orden.creado|date:"d/m/Y" }}</div>
+        <div class="campo"><span class="label">Fecha de Entrega:</span>____/____/______</div>
+
+        <table class="detalle">
+            <thead><tr><th>Cant.</th><th>Detalle</th><th>Cód.</th><th>Importe</th></tr></thead>
+            <tbody>
+                {% if orden.venta_item %}
+                <tr>
+                    <td>{{ orden.venta_item.cantidad }}</td>
+                    <td>{{ orden.producto }}</td>
+                    <td>{{ orden.producto.codigo_barras }}</td>
+                    <td>${{ orden.venta_item.subtotal }}</td>
+                </tr>
+                {% else %}
+                <tr><td>1</td><td>{{ orden.producto }}</td><td>{{ orden.producto.codigo_barras }}</td><td></td></tr>
+                {% endif %}
+                <tr><td></td><td></td><td></td><td></td></tr>
+                <tr><td></td><td></td><td></td><td></td></tr>
+            </tbody>
+        </table>
+
+        {% if orden.venta_item.venta %}
+        <table class="totales">
+            <tr><td class="label">Total</td><td class="valor">${{ orden.venta_item.venta.total }}</td></tr>
+            <tr><td class="label">Seña/Pagado</td><td class="valor">${{ orden.venta_item.venta.monto_pagado }}</td></tr>
+            <tr><td class="label">Saldo</td><td class="valor">${{ orden.venta_item.venta.saldo_pendiente }}</td></tr>
+        </table>
+        {% endif %}
+
+        <div class="aviso">La casa no se responsabiliza por daños o roturas producidas en armazones provistos por el cliente.</div>
+    </div>
+</div>
+
+</body>
+</html>

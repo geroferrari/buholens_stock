@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Registrar devolución</h3>
+<p class="text-muted">Escaneá el producto que el cliente devuelve. Si controla stock, se reingresa automáticamente.</p>
+
+{% url 'sales:devolucion_registrar' as post_url %}
+{% include "partials/scanner_widget.html" with post_url=post_url boton_label="Registrar" incluir_motivo=True %}
+{% endblock %}

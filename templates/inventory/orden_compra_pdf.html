@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Pedido #{{ orden.pk }} - {{ orden.proveedor.nombre }}</title>
+<style>
+    body { font-family: Arial, Helvetica, sans-serif; color: #111; max-width: 800px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 1.4rem; margin-bottom: 0; }
+    .subtitulo { color: #555; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; font-size: 0.9rem; }
+    th { background: #f0f0f0; }
+    td.num, th.num { text-align: right; }
+    tfoot td { font-weight: bold; }
+    .notas { margin-top: 16px; white-space: pre-wrap; }
+    .toolbar { text-align: center; margin-bottom: 20px; }
+    .toolbar button { font-size: 1rem; padding: 8px 16px; }
+    @media print {
+        .toolbar { display: none; }
+        body { padding: 0; }
+        @page { margin: 12mm; }
+    }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+    <button onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>
+</div>
+
+<h1>👓 Orden de compra #{{ orden.pk }}</h1>
+<div class="subtitulo">
+    Proveedor: <strong>{{ orden.proveedor.nombre }}</strong>{% if orden.proveedor.contacto %} — {{ orden.proveedor.contacto }}{% endif %}{% if orden.proveedor.telefono %} — Tel: {{ orden.proveedor.telefono }}{% endif %}<br>
+    Fecha: {{ orden.fecha_creacion|date:"d/m/Y" }} — Estado: {{ orden.get_estado_display }}
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Marca</th><th>Modelo</th><th>Detalle</th>
+            <th class="num">Cantidad</th><th class="num">Costo unit.</th><th class="num">Subtotal</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in orden.items.all %}
+        <tr>
+            {% if item.producto %}
+            <td>{{ item.producto.marca.nombre|default:"—" }}</td>
+            <td>{{ item.producto.modelo }}</td>
+            <td>{{ item.producto.color|default:"—" }}</td>
+            {% else %}
+            <td>{{ item.marca_texto }}</td>
+            <td>{{ item.modelo_texto }}</td>
+            <td>{{ item.descripcion|default:"—" }}</td>
+            {% endif %}
+            <td class="num">{{ item.cantidad_pedida }}</td>
+            <td class="num">${{ item.costo_unitario }}</td>
+            <td class="num">${{ item.subtotal_estimado }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr>
+            <td colspan="5">Total estimado</td>
+            <td class="num">${{ orden.total_estimado }}</td>
+        </tr>
+    </tfoot>
+</table>
+
+{% if orden.notas %}
+<div class="notas"><strong>Notas:</strong> {{ orden.notas }}</div>
+{% endif %}
+
+</body>
+</html>

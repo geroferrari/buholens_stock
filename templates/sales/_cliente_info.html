@@ -1,0 +1,58 @@
+{% if venta.cliente %}
+<div class="wizard-step" data-step="2">
+    <div class="border rounded p-2 bg-light-subtle mt-2">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <strong class="small">Datos del cliente</strong>
+            {% if cliente_guardado %}<span class="badge bg-success">Guardado</span>{% endif %}
+        </div>
+        <div class="row g-2">
+            <div class="col-md-6"><input type="text" id="cli-nombre" class="form-control form-control-sm" placeholder="Nombre" value="{{ venta.cliente.nombre }}" {% if venta.estado != "OPEN" %}disabled{% endif %}></div>
+            <div class="col-md-6"><input type="text" id="cli-apellido" class="form-control form-control-sm" placeholder="Apellido" value="{{ venta.cliente.apellido }}" {% if venta.estado != "OPEN" %}disabled{% endif %}></div>
+            <div class="col-md-6"><input type="text" id="cli-dni" class="form-control form-control-sm" placeholder="DNI" value="{{ venta.cliente.dni }}" inputmode="numeric" pattern="[0-9]*" {% if venta.estado != "OPEN" %}disabled{% endif %}></div>
+            <div class="col-md-6"><input type="text" id="cli-telefono" class="form-control form-control-sm" placeholder="Teléfono" value="{{ venta.cliente.telefono }}" inputmode="numeric" pattern="[0-9]*" {% if venta.estado != "OPEN" %}disabled{% endif %}></div>
+            <div class="col-md-6"><input type="email" id="cli-email" class="form-control form-control-sm" placeholder="Email" value="{{ venta.cliente.email }}" {% if venta.estado != "OPEN" %}disabled{% endif %}></div>
+            <div class="col-12"><input type="text" id="cli-direccion" class="form-control form-control-sm" placeholder="Dirección" value="{{ venta.cliente.direccion }}" {% if venta.estado != "OPEN" %}disabled{% endif %}></div>
+            {% if venta.estado == "OPEN" %}
+            <div class="col-12"><button type="button" id="btn-guardar-cliente-edit" class="btn btn-sm btn-outline-success">Guardar datos del cliente</button></div>
+            {% endif %}
+        </div>
+        {% if venta.cliente.obra_social %}
+        <div class="mt-2 small">🏥 Obra social del cliente: <strong>{{ venta.cliente.obra_social }}</strong></div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="wizard-step" data-step="3">
+    <div class="border rounded p-3 bg-light-subtle mt-2">
+        <p class="fw-bold mb-2">📋 ¿Asociar una receta de este cliente a la venta?</p>
+        {% if venta.receta_sugerida %}
+        <div class="alert alert-success d-flex justify-content-between align-items-center py-2 mb-2">
+            <span>
+                Receta asociada: <strong>{{ venta.receta_sugerida.fecha_recibido|date:"d/m/Y" }}</strong>
+                {% if venta.receta_sugerida.medico %} · {{ venta.receta_sugerida.medico }}{% endif %}
+            </span>
+            {% if venta.estado == "OPEN" %}
+            <button type="button" class="btn-close" id="btn-quitar-receta-venta" aria-label="Quitar receta"></button>
+            {% endif %}
+        </div>
+        {% else %}
+        <p class="text-muted small">Todavía no asociaste ninguna receta a esta venta (es opcional).</p>
+        {% endif %}
+        {% if venta.estado == "OPEN" %}
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+            <select id="select-receta-venta" class="form-select form-select-sm w-auto" data-searchable="1">
+                <option value="">— buscar otra receta del cliente —</option>
+            </select>
+            <a href="#" id="btn-abrir-receta-nueva" class="small text-decoration-none">+ Cargar receta nueva</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="wizard-step" data-step="2">
+    <p class="text-muted small mt-2">Podés avanzar sin cliente (queda como "Consumidor final") o buscar/cargar uno arriba.</p>
+</div>
+<div class="wizard-step" data-step="3">
+    <p class="text-muted small mt-2">Elegí un cliente en el paso anterior para poder asociarle una receta.</p>
+</div>
+{% endif %}

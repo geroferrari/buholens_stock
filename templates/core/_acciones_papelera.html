@@ -1,0 +1,11 @@
+<div class="d-inline-flex gap-1">
+    <form method="post" action="{% url 'core:restaurar' tipo obj.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-outline-success">↩ Recuperar</button>
+    </form>
+    <form method="post" action="{% url 'core:eliminar_definitivo' tipo obj.pk %}"
+          onsubmit="return confirm('¿Eliminar definitivamente? Esto no se puede deshacer.');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-outline-danger">🗑 Borrar ya</button>
+    </form>
+</div>

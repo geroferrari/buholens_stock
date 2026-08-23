@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+
+<h3 class="mb-3">{{ title }}</h3>
+<p class="text-muted">Para cargar una orden suelta (sin pasar por una venta ni un precio): elegí el cliente, una receta ya cargada de ese cliente, y el cristal a usar.</p>
+
+<form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-body row g-3">
+            <div class="col-md-6 position-relative">
+                <label class="form-label">Cliente</label>
+                {{ form.cliente.as_hidden }}
+                <input type="text" id="cliente-buscar" class="form-control" placeholder="Buscar por nombre, apellido o DNI..." autocomplete="off">
+                <div id="cliente-resultados" class="list-group position-absolute w-100 shadow-sm" style="z-index:1000; max-height:240px; overflow-y:auto; display:none;"></div>
+                <div id="cliente-seleccionado" class="d-flex flex-wrap gap-2 mt-2"></div>
+                {% for error in form.cliente.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Receta</label>
+                {{ form.receta }}
+                <div class="form-text" id="receta-hint">Elegí un cliente primero.</div>
+                {% for error in form.receta.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">{{ form.producto.label }}</label>
+                {{ form.producto }}
+                {% for error in form.producto.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+
+            <div class="col-md-6 position-relative">
+                <label class="form-label">Armazón</label>
+                {{ form.armazon.as_hidden }}
+                <input type="text" id="armazon-buscar" class="form-control" placeholder="Buscar armazón por marca, modelo o color..." autocomplete="off">
+                <div id="armazon-resultados" class="list-group position-absolute w-100 shadow-sm" style="z-index:1000; max-height:240px; overflow-y:auto; display:none;"></div>
+                <div id="armazon-seleccionado" class="d-flex flex-wrap gap-2 mt-2"></div>
+                <div class="form-check mt-2">
+                    {{ form.armazon_de_cliente }}
+                    <label class="form-check-label" for="{{ form.armazon_de_cliente.id_for_label }}">🙋 Armazón del cliente (trae el suyo)</label>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">{{ form.observaciones.label }}</label>
+                {{ form.observaciones }}
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-success">Crear orden de laboratorio</button>
+    <a href="{% url 'prescriptions:orden_laboratorio_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+</form>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/searchable_select.js' %}"></script>
+<script>
+(function() {
+    // Cliente: buscar y elegir (igual que en el formulario de receta).
+    const clienteBuscar = document.getElementById('cliente-buscar');
+    const clienteResultados = document.getElementById('cliente-resultados');
+    const clienteSeleccionado = document.getElementById('cliente-seleccionado');
+    const inputClienteId = document.getElementById('id_cliente');
+    const selectReceta = document.getElementById('id_receta');
+    const recetaHint = document.getElementById('receta-hint');
+    let clienteTimeout;
+
+    function poblarRecetas(clienteId) {
+        selectReceta.innerHTML = '<option value="">— cargando... —</option>';
+        fetch(`{% url 'prescriptions:recetas_de_cliente_json' %}?cliente=${clienteId}`)
+            .then(r => r.json())
+            .then(data => {
+                selectReceta.innerHTML = '';
+                const vacia = document.createElement('option');
+                vacia.value = '';
+                vacia.textContent = '— elegir receta —';
+                selectReceta.appendChild(vacia);
+                data.recetas.forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = r.id;
+                    opt.textContent = r.fecha_recibido + (r.medico ? ' · ' + r.medico : '');
+                    selectReceta.appendChild(opt);
+                });
+                recetaHint.textContent = data.recetas.length
+                    ? `${data.recetas.length} receta(s) de este cliente.`
+                    : 'Este cliente todavía no tiene ninguna receta cargada.';
+            });
+    }
+
+    function elegirCliente(id, label) {
+        inputClienteId.value = id;
+        clienteSeleccionado.innerHTML = '';
+        const chip = document.createElement('span');
+        chip.className = 'badge text-bg-primary d-flex align-items-center gap-2 py-2 px-3 fs-6 fw-normal';
+        chip.textContent = label;
+        const btnX = document.createElement('button');
+        btnX.type = 'button';
+        btnX.className = 'btn-close btn-close-white';
+        btnX.style.fontSize = '0.6rem';
+        btnX.setAttribute('aria-label', 'Quitar cliente');
+        btnX.addEventListener('click', () => {
+            inputClienteId.value = '';
+            clienteSeleccionado.innerHTML = '';
+            selectReceta.innerHTML = '<option value="">— elegir receta —</option>';
+            recetaHint.textContent = 'Elegí un cliente primero.';
+        });
+        chip.appendChild(btnX);
+        clienteSeleccionado.appendChild(chip);
+        clienteBuscar.value = '';
+        clienteResultados.style.display = 'none';
+        poblarRecetas(id);
+    }
+
+    clienteBuscar.addEventListener('input', () => {
+        clearTimeout(clienteTimeout);
+        const q = clienteBuscar.value.trim();
+        if (!q) { clienteResultados.style.display = 'none'; return; }
+        clienteTimeout = setTimeout(() => {
+            fetch(`{% url 'customers:buscar_clientes_json' %}?q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(data => {
+                    clienteResultados.innerHTML = '';
+                    data.resultados.forEach(c => {
+                        const label = `${c.nombre} ${c.apellido}${c.dni ? ' (DNI ' + c.dni + ')' : ''}`.trim();
+                        const item = document.createElement('button');
+                        item.type = 'button';
+                        item.className = 'list-group-item list-group-item-action';
+                        item.textContent = label || c.email || 'Cliente sin nombre';
+                        item.addEventListener('mousedown', (e) => {
+                            e.preventDefault();
+                            elegirCliente(c.id, label || c.email || 'Cliente sin nombre');
+                        });
+                        clienteResultados.appendChild(item);
+                    });
+                    clienteResultados.style.display = data.resultados.length ? '' : 'none';
+                });
+        }, 250);
+    });
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#cliente-buscar') && !e.target.closest('#cliente-resultados')) {
+            clienteResultados.style.display = 'none';
+        }
+    });
+
+    // Armazón: buscar y elegir, o "trae el suyo" (mutuamente excluyentes).
+    const armazonBuscar = document.getElementById('armazon-buscar');
+    const armazonResultados = document.getElementById('armazon-resultados');
+    const armazonSeleccionado = document.getElementById('armazon-seleccionado');
+    const inputArmazonId = document.getElementById('id_armazon');
+    const chkArmazonDeCliente = document.getElementById('id_armazon_de_cliente');
+    let armazonTimeout;
+
+    function limpiarArmazon() {
+        inputArmazonId.value = '';
+        armazonSeleccionado.innerHTML = '';
+    }
+
+    function elegirArmazon(id, label) {
+        chkArmazonDeCliente.checked = false;
+        inputArmazonId.value = id;
+        armazonSeleccionado.innerHTML = '';
+        const chip = document.createElement('span');
+        chip.className = 'badge text-bg-primary d-flex align-items-center gap-2 py-2 px-3 fs-6 fw-normal';
+        chip.textContent = label;
+        const btnX = document.createElement('button');
+        btnX.type = 'button';
+        btnX.className = 'btn-close btn-close-white';
+        btnX.style.fontSize = '0.6rem';
+        btnX.setAttribute('aria-label', 'Quitar armazón');
+        btnX.addEventListener('click', limpiarArmazon);
+        chip.appendChild(btnX);
+        armazonSeleccionado.appendChild(chip);
+        armazonBuscar.value = '';
+        armazonResultados.style.display = 'none';
+    }
+
+    armazonBuscar.addEventListener('input', () => {
+        clearTimeout(armazonTimeout);
+        const q = armazonBuscar.value.trim();
+        if (q.length < 2) { armazonResultados.style.display = 'none'; return; }
+        armazonTimeout = setTimeout(() => {
+            fetch(`{% url 'prescriptions:buscar_armazones_json' %}?q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(data => {
+                    armazonResultados.innerHTML = '';
+                    data.resultados.forEach(p => {
+                        const item = document.createElement('button');
+                        item.type = 'button';
+                        item.className = 'list-group-item list-group-item-action';
+                        item.textContent = p.label;
+                        item.addEventListener('mousedown', (e) => {
+                            e.preventDefault();
+                            elegirArmazon(p.id, p.label);
+                        });
+                        armazonResultados.appendChild(item);
+                    });
+                    armazonResultados.style.display = data.resultados.length ? '' : 'none';
+                });
+        }, 250);
+    });
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#armazon-buscar') && !e.target.closest('#armazon-resultados')) {
+            armazonResultados.style.display = 'none';
+        }
+    });
+    chkArmazonDeCliente.addEventListener('change', () => {
+        if (chkArmazonDeCliente.checked) limpiarArmazon();
+    });
+})();
+</script>
+{% endblock %}

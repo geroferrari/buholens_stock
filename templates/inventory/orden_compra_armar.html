@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Armar pedido - {{ orden.proveedor.nombre }}{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h3 class="mb-0">Pedido #{{ orden.pk }} — {{ orden.proveedor.nombre }}</h3>
+    <a href="{% url 'inventory:orden_compra_lista' %}" class="btn btn-outline-secondary btn-sm">Volver al listado</a>
+</div>
+
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>
+{% endfor %}
+{% endif %}
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card shadow-sm mb-3">
+            <div class="card-header fw-bold">Catálogo de {{ orden.proveedor.nombre }}</div>
+            <div class="card-body">
+                <form method="get" class="mb-3">
+                    <div class="input-group">
+                        <input type="text" name="q" class="form-control" placeholder="Buscar por marca, modelo, color..." value="{{ query }}">
+                        <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+                    </div>
+                </form>
+                <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
+                    <table class="table table-sm table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Marca</th><th>Modelo</th><th>Color</th>
+                                <th class="text-end">Stock</th><th class="text-end">Ya pedido</th>
+                                <th style="width: 220px;">Agregar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for producto in productos %}
+                            <tr>
+                                <td>{{ producto.marca.nombre|default:"—" }}</td>
+                                <td>{{ producto.modelo }}</td>
+                                <td>{{ producto.color|default:"—" }}</td>
+                                <td class="text-end">{{ producto.stock_actual }}</td>
+                                <td class="text-end">{{ producto.cantidad_pedida_actual|default:"—" }}</td>
+                                <td>
+                                    <form method="post" action="{% url 'inventory:orden_compra_agregar_producto' orden.pk %}" class="d-flex gap-1">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="producto_id" value="{{ producto.id }}">
+                                        <input type="number" name="cantidad" value="1" min="1" class="form-control form-control-sm" style="width: 70px;">
+                                        <button type="submit" class="btn btn-sm btn-primary">+ Agregar</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="6" class="text-center text-muted py-3">Este proveedor no tiene productos cargados en el catálogo todavía.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header fw-bold">Agregar ítem nuevo (modelo que todavía no está en el catálogo)</div>
+            <div class="card-body">
+                <form method="post" action="{% url 'inventory:orden_compra_agregar_manual' orden.pk %}" class="row g-2">
+                    {% csrf_token %}
+                    <div class="col-md-3">
+                        <label class="form-label">Marca</label>
+                        <input type="text" name="marca_texto" class="form-control" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Modelo</label>
+                        <input type="text" name="modelo_texto" class="form-control" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Color / detalle</label>
+                        <input type="text" name="descripcion" class="form-control">
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label">Cant.</label>
+                        <input type="number" name="cantidad_pedida" value="1" min="1" class="form-control">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Costo estimado</label>
+                        <input type="text" name="costo_unitario" value="0" class="form-control">
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-outline-primary btn-sm">+ Agregar ítem nuevo</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card shadow-sm mb-3">
+            <div class="card-header fw-bold">Pedido ({{ items|length }} ítem{{ items|length|pluralize }})</div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr><th>Ítem</th><th class="text-end">Cant.</th><th class="text-end">Costo</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>
+                                {{ item.nombre }}
+                                {% if item.es_nuevo %}<span class="badge text-bg-warning">nuevo</span>{% endif %}
+                            </td>
+                            <td class="text-end">{{ item.cantidad_pedida }}</td>
+                            <td class="text-end">${{ item.costo_unitario }}</td>
+                            <td class="text-end">
+                                <form method="post" action="{% url 'inventory:orden_compra_quitar_item' orden.pk item.pk %}" onsubmit="return confirm('¿Quitar este ítem del pedido?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">×</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">Todavía no agregaste ítems.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if items %}
+                    <tfoot>
+                        <tr class="fw-bold">
+                            <td>Total estimado</td><td></td><td class="text-end">${{ orden.total_estimado }}</td><td></td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="post" action="{% url 'inventory:orden_compra_confirmar' orden.pk %}">
+                    {% csrf_token %}
+                    <label class="form-label">Notas para el proveedor (opcional)</label>
+                    <textarea name="notas" class="form-control mb-3" rows="2">{{ orden.notas }}</textarea>
+                    <button type="submit" class="btn btn-success w-100" {% if not items %}disabled{% endif %}>
+                        ✅ Confirmar pedido
+                    </button>
+                </form>
+                <form method="post" action="{% url 'inventory:orden_compra_cancelar' orden.pk %}" class="mt-2" onsubmit="return confirm('¿Cancelar y descartar este borrador de pedido?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger w-100 btn-sm">Descartar borrador</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

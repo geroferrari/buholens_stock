@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Venta #{{ venta.id }}{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">Venta #{{ venta.id }}</h3>
+    <form method="post" action="{% url 'sales:cancelar_venta' venta.id %}" id="form-cancelar-venta">
+        {% csrf_token %}
+    </form>
+    <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#modal-cancelar-venta">Cancelar venta</button>
+</div>
+
+{% include "partials/confirm_modal.html" with modal_id="modal-cancelar-venta" modal_title="¿Cancelar esta venta?" modal_mensaje="Se van a perder los productos escaneados. Esta acción no se puede deshacer." modal_confirmar_label="Sí, cancelar venta" %}
+
+<div class="modal fade" id="modal-escaneo" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modal-escaneo-titulo">Producto escaneado</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modal-escaneo-body"></div>
+            <div class="modal-footer" id="modal-escaneo-footer"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-agregar-producto" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Agregar producto / cristal</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="catalogo-buscar" class="form-control" placeholder="Buscar por marca, modelo o categoría..." autocomplete="off">
+                <div id="catalogo-resultados" class="list-group mt-2"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-agregar-cristal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Agregar cristales</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="cristal-buscar" class="form-control" placeholder="Buscar cristal por marca o modelo..." autocomplete="off">
+                <div id="cristal-resultados" class="list-group mt-2" style="max-height:320px; overflow-y:auto;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-item-express" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">⚡ Vender artículo sin cargarlo al catálogo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">Para vender algo que todavía no está en el sistema: escribí qué es y a qué precio. Se agrega a la venta sin control de stock. Después se puede completar (categoría, stock, etc.) desde el inventario, en la categoría "Pendiente de normalizar".</p>
+                <div id="express-error" class="alert alert-danger py-2 d-none"></div>
+                <div class="mb-2">
+                    <label class="form-label mb-1">Descripción <span class="text-danger">*</span></label>
+                    <input type="text" id="express-descripcion" class="form-control" placeholder="Ej: Armazón Vulk negro" autocomplete="off">
+                </div>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label mb-1">Precio <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" id="express-precio" class="form-control" step="0.01" min="0" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label mb-1">Cantidad</label>
+                        <input type="number" id="express-cantidad" class="form-control" min="1" value="1">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label mb-1">Marca <span class="text-muted">(opcional)</span></label>
+                        <input type="text" id="express-marca" class="form-control" placeholder="Ej: Vulk" autocomplete="off">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="btn-agregar-express" class="btn btn-success">Agregar a la venta</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-receta-sugerida" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Asociar receta a esta venta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modal-receta-sugerida-body"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No, no es esta</button>
+                <button type="button" id="btn-confirmar-receta-sugerida" class="btn btn-success">Sí, es correcta: asociar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-buscar-receta" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Buscar receta de otro cliente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">Para el caso de una compra con varias personas: buscá por nombre o DNI del cliente dueño de la receta.</p>
+                <input type="text" id="buscar-receta-input" class="form-control" placeholder="Nombre o DNI..." autocomplete="off">
+                <div id="buscar-receta-resultados" class="list-group mt-2" style="max-height:320px; overflow-y:auto;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-ver-receta" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalle de la receta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modal-ver-receta-body"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-receta-nueva" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cargar receta de este cliente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modal-receta-nueva-body">
+                <p class="text-muted">Cargando...</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="btn-guardar-receta-nueva" class="btn btn-success">Guardar receta</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-confirmar-item" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar artículo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-1"><strong id="ci-nombre"></strong></p>
+                <p id="ci-stock" class="text-muted small mb-2"></p>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label mb-1">Precio</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" id="ci-precio" class="form-control" step="0.01" min="0">
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label mb-1">Cantidad</label>
+                        <input type="number" id="ci-cantidad" class="form-control" min="1" value="1">
+                    </div>
+                </div>
+                <div class="form-text">Revisá el precio: podés ajustarlo acá antes de agregarlo. Una vez en el carrito ya no se edita.</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="ci-confirmar" class="btn btn-success">Agregar a la venta</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="wizard-progress" class="mb-3 d-flex flex-wrap gap-1"></div>
+
+<div class="row g-4">
+    <div class="col-12 wizard-step" data-step="1">
+        <div class="card shadow-sm border-primary">
+            <div class="card-header bg-primary text-white fw-bold">Paso 1 · ¿Quién atiende la venta?</div>
+            <div class="card-body">
+                <select id="select-vendedor" class="form-select form-select-lg">
+                    <option value="">— elegir vendedor/a —</option>
+                    {% for v in vendedores %}
+                    <option value="{{ v.id }}" {% if venta.vendedor_id == v.id %}selected{% endif %}>{{ v.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 wizard-step" data-step="2">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light fw-bold small text-uppercase text-muted">Paso 2 · Elegir cliente</div>
+            <div class="card-body">
+                <div class="position-relative">
+                    <input type="text" id="cliente-buscar" class="form-control" placeholder="Buscar por nombre o DNI...">
+                    <div id="cliente-resultados" class="list-group position-absolute w-100 shadow-sm" style="z-index:1000; max-height:240px; overflow-y:auto; display:none;"></div>
+                </div>
+                <div id="cliente-seleccionado" class="d-flex flex-wrap gap-2 mt-2">
+                    {% if venta.cliente %}
+                    <span class="badge text-bg-primary d-flex align-items-center gap-2 py-2 px-3 fs-6 fw-normal">
+                        {{ venta.cliente.nombre_completo|default:venta.cliente.email|default:"Cliente sin nombre" }}
+                        <button type="button" class="btn-close btn-close-white btn-quitar-cliente" style="font-size:0.6rem;" aria-label="Quitar cliente"></button>
+                    </span>
+                    {% endif %}
+                </div>
+
+                <a href="#" id="toggle-cliente-nuevo" class="d-inline-block mt-2 small text-decoration-none">+ No lo encuentro, cargar cliente nuevo</a>
+                <div id="form-cliente-nuevo" class="mt-2 d-none">
+                    <div class="row g-2">
+                        <div class="col-6"><input type="text" id="nc-nombre" class="form-control form-control-sm" placeholder="Nombre"></div>
+                        <div class="col-6"><input type="text" id="nc-apellido" class="form-control form-control-sm" placeholder="Apellido"></div>
+                        <div class="col-6"><input type="text" id="nc-dni" class="form-control form-control-sm" placeholder="DNI" inputmode="numeric" pattern="[0-9]*"></div>
+                        <div class="col-6"><input type="text" id="nc-telefono" class="form-control form-control-sm" placeholder="Teléfono" inputmode="numeric" pattern="[0-9]*"></div>
+                        <div class="col-12"><input type="email" id="nc-email" class="form-control form-control-sm" placeholder="Email"></div>
+                        <div class="col-12"><input type="text" id="nc-direccion" class="form-control form-control-sm" placeholder="Dirección"></div>
+                        <div class="col-12">
+                            <select id="nc-obra-social" class="form-select form-select-sm" data-searchable="1">
+                                <option value="">— obra social (opcional) —</option>
+                                {% for os in obras_sociales %}
+                                <option value="{{ os.id }}">{{ os.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12"><button type="button" id="btn-guardar-cliente-nuevo" class="btn btn-sm btn-success">Guardar y usar este cliente</button></div>
+                    </div>
+                </div>
+
+                <a href="#" id="toggle-email-rapido" class="d-inline-block mt-2 small text-decoration-none">+ Solo guardar el mail</a>
+                <div id="form-email-rapido" class="mt-2 d-none">
+                    <div class="input-group input-group-sm">
+                        <input type="email" id="email-rapido" class="form-control" placeholder="mail@ejemplo.com">
+                        <button type="button" id="btn-email-rapido" class="btn btn-outline-secondary">Guardar</button>
+                    </div>
+                </div>
+
+                <div id="cliente-info-container">
+                    {% include "sales/_cliente_info.html" %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 wizard-step" data-step="4">
+        <div class="card shadow-sm border-primary">
+            <div class="card-header bg-primary text-white fw-bold">Paso 4 · Cargar productos</div>
+            <div class="card-body">
+                <div class="input-group">
+                    <input type="text" id="codigo-barras-input" class="form-control form-control-lg" placeholder="Escanee código" autofocus autocomplete="off">
+                    {% include "partials/camera_scan_button.html" with input_id="codigo-barras-input" %}
+                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modal-agregar-producto">+ Agregar manual</button>
+                </div>
+                <button type="button" class="btn btn-outline-secondary w-100 mt-2" data-bs-toggle="modal" data-bs-target="#modal-agregar-cristal">🔍 Agregar cristales</button>
+                <button type="button" class="btn btn-outline-success w-100 mt-2" data-bs-toggle="modal" data-bs-target="#modal-item-express">⚡ Vender artículo sin cargar (precio a mano)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div id="cart-container">
+            {% include "sales/_cart.html" %}
+        </div>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top position-sticky bottom-0 bg-white pb-2">
+    <button type="button" id="wizard-back" class="btn btn-outline-secondary">← Atrás</button>
+    <div id="wizard-step-label" class="text-muted small text-center"></div>
+    <button type="button" id="wizard-next" class="btn btn-primary">Siguiente →</button>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/receta_cerca.js' %}"></script>
+<script src="{% static 'js/searchable_select.js' %}"></script>
+<script>
+const ventaId = {{ venta.id }};
+// Al volver a una venta ya empezada (ej: se salió y se re-entró desde el
+// listado), el wizard arranca en el primer paso que todavía falta en vez de
+// forzar a repasar todo desde el paso 1.
+const ventaInicial = {
+    vendedor: {% if venta.vendedor_id %}true{% else %}false{% endif %},
+    cliente: {% if venta.cliente_id %}true{% else %}false{% endif %},
+    items: {{ venta.items.count }},
+};
+</script>
+<script src="{% static 'js/pos.js' %}"></script>
+{% endblock %}
