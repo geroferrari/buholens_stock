@@ -42,19 +42,24 @@ urlpatterns = [
     path("lista-precios/", views.ListaPreciosView.as_view(), name="lista_precios"),
     path("lista-precios/guardar/", views.ListaPreciosGuardarView.as_view(), name="lista_precios_guardar"),
 
-    path("bancos/", views.BancoListView.as_view(), name="banco_lista"),
-    path("bancos/nuevo/", views.BancoCreateView.as_view(), name="banco_nuevo"),
-    path("bancos/<int:pk>/editar/", views.BancoUpdateView.as_view(), name="banco_editar"),
-    path("bancos/<int:pk>/eliminar/", views.BancoDeleteView.as_view(), name="banco_eliminar"),
+    # Bancos, financiación y promociones: ocultas a propósito para reducir
+    # complejidad por ahora. Descomentar para reactivar (junto con las
+    # tarjetas en home.html/gestion.html). Ojo: "sales:asociar_promocion_item"
+    # (aplica una promoción ya cargada a un ítem de venta) es independiente de
+    # esto y sigue activo.
+    # path("bancos/", views.BancoListView.as_view(), name="banco_lista"),
+    # path("bancos/nuevo/", views.BancoCreateView.as_view(), name="banco_nuevo"),
+    # path("bancos/<int:pk>/editar/", views.BancoUpdateView.as_view(), name="banco_editar"),
+    # path("bancos/<int:pk>/eliminar/", views.BancoDeleteView.as_view(), name="banco_eliminar"),
 
-    path("financiacion/nuevo/", views.PlanFinanciacionCreateView.as_view(), name="plan_financiacion_nuevo"),
-    path("financiacion/<int:pk>/editar/", views.PlanFinanciacionUpdateView.as_view(), name="plan_financiacion_editar"),
-    path("financiacion/<int:pk>/eliminar/", views.PlanFinanciacionDeleteView.as_view(), name="plan_financiacion_eliminar"),
+    # path("financiacion/nuevo/", views.PlanFinanciacionCreateView.as_view(), name="plan_financiacion_nuevo"),
+    # path("financiacion/<int:pk>/editar/", views.PlanFinanciacionUpdateView.as_view(), name="plan_financiacion_editar"),
+    # path("financiacion/<int:pk>/eliminar/", views.PlanFinanciacionDeleteView.as_view(), name="plan_financiacion_eliminar"),
 
-    path("promociones/", views.PromocionListView.as_view(), name="promocion_lista"),
-    path("promociones/nueva/", views.PromocionCreateView.as_view(), name="promocion_nueva"),
-    path("promociones/<int:pk>/editar/", views.PromocionUpdateView.as_view(), name="promocion_editar"),
-    path("promociones/<int:pk>/eliminar/", views.PromocionDeleteView.as_view(), name="promocion_eliminar"),
+    # path("promociones/", views.PromocionListView.as_view(), name="promocion_lista"),
+    # path("promociones/nueva/", views.PromocionCreateView.as_view(), name="promocion_nueva"),
+    # path("promociones/<int:pk>/editar/", views.PromocionUpdateView.as_view(), name="promocion_editar"),
+    # path("promociones/<int:pk>/eliminar/", views.PromocionDeleteView.as_view(), name="promocion_eliminar"),
 
     path("ordenes-compra/", views.OrdenCompraListView.as_view(), name="orden_compra_lista"),
     path("ordenes-compra/nueva/", views.orden_compra_nueva, name="orden_compra_nueva"),

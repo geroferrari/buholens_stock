@@ -116,30 +116,12 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100" data-tour>
-            <div class="card-body">
-                <h5 class="card-title">↩️ Devoluciones</h5>
-                <p class="card-text">Historial de devoluciones registradas.</p>
-                <div class="acciones">
-                    <a href="{% url 'sales:devolucion_lista' %}" class="btn btn-outline-primary">Ver historial</a>
-                    <a href="{% url 'core:papelera' %}" class="btn btn-outline-secondary">🗑️ Papelera</a>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100" data-tour>
-            <div class="card-body">
-                <h5 class="card-title">🏷️ Promociones y financiación</h5>
-                <p class="card-text">Descuentos por producto, marca o categoría, y promos de cuotas de bancos.</p>
-                <div class="acciones">
-                    <a href="{% url 'inventory:promocion_lista' %}" class="btn btn-outline-primary">Promociones / financiación</a>
-                    <a href="{% url 'inventory:banco_nuevo' %}" class="btn btn-outline-secondary">+ Agregar banco</a>
-                </div>
-            </div>
-        </div>
-    </div>
+    {% comment %}
+    Devoluciones, Papelera, Promociones y financiación: ocultas a propósito
+    para reducir la complejidad visible por ahora. El código y las URLs
+    siguen intactos (ver sales/urls.py, core/urls.py e inventory/urls.py) —
+    para reactivarlas, descomentar esas rutas y estas tarjetas.
+    {% endcomment %}
     <div class="col-md-4">
         <div class="card shadow-sm h-100" data-tour>
             <div class="card-body">

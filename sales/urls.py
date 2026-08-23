@@ -54,9 +54,11 @@ urlpatterns = [
     path("vendedores/<int:pk>/editar/", views.VendedorUpdateView.as_view(), name="vendedor_editar"),
     path("vendedores/<int:pk>/eliminar/", views.VendedorDeleteView.as_view(), name="vendedor_eliminar"),
 
-    path("devoluciones/", views.DevolucionListView.as_view(), name="devolucion_lista"),
-    path("devoluciones/nueva/", views.devolucion_nueva, name="devolucion_nueva"),
-    path("devoluciones/registrar/", views.devolucion_registrar, name="devolucion_registrar"),
+    # Devoluciones: ocultas a propósito para reducir complejidad por ahora.
+    # Descomentar para reactivar (junto con las tarjetas en home.html/gestion.html).
+    # path("devoluciones/", views.DevolucionListView.as_view(), name="devolucion_lista"),
+    # path("devoluciones/nueva/", views.devolucion_nueva, name="devolucion_nueva"),
+    # path("devoluciones/registrar/", views.devolucion_registrar, name="devolucion_registrar"),
 
     path("caja/", views.caja_del_dia, name="caja_del_dia"),
     path("dashboard/", views.dashboard, name="dashboard"),

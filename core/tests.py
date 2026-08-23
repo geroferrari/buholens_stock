@@ -3,6 +3,7 @@ import json
 import os
 import tempfile
 from io import StringIO
+from unittest import skip
 
 from django.contrib.auth.models import Group, User
 from django.core import mail
@@ -91,6 +92,7 @@ class PapeleraSoftDeleteTests(TestCase):
         self.assertTrue(Receta.con_eliminados.filter(pk=rid).exists())  # recuperable
         self.assertTrue(Receta.con_eliminados.get(pk=rid).en_papelera)
 
+    @skip("Papelera oculta a propósito (ver core/urls.py); descomentar al reactivarla")
     def test_restaurar_desde_la_vista(self):
         from prescriptions.models import Receta
         self.receta.delete()
@@ -98,6 +100,7 @@ class PapeleraSoftDeleteTests(TestCase):
         self.client.post(f"/papelera/receta/{self.receta.pk}/restaurar/")
         self.assertTrue(Receta.objects.filter(pk=self.receta.pk).exists())
 
+    @skip("Papelera oculta a propósito (ver core/urls.py); descomentar al reactivarla")
     def test_eliminar_definitivo_desde_la_vista(self):
         from prescriptions.models import Receta
         self.receta.delete()
@@ -105,10 +108,12 @@ class PapeleraSoftDeleteTests(TestCase):
         self.client.post(f"/papelera/receta/{self.receta.pk}/eliminar/")
         self.assertFalse(Receta.con_eliminados.filter(pk=self.receta.pk).exists())
 
+    @skip("Papelera oculta a propósito (ver core/urls.py); descomentar al reactivarla")
     def test_papelera_es_solo_admin(self):
         self.client.login(username="empleado", password="test12345")
         self.assertEqual(self.client.get("/papelera/").status_code, 302)
 
+    @skip("Papelera oculta a propósito (ver core/urls.py); descomentar al reactivarla")
     def test_papelera_admin_renderiza_con_items(self):
         self.receta.delete()
         self.producto.delete()

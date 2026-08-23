@@ -11,7 +11,7 @@
             <thead class="table-light">
                 <tr>
                     <th>N°</th><th>Fecha</th><th>Cliente</th><th>Obra social</th><th>Total</th>
-                    <th>Pagado</th><th>Saldo</th><th></th><th></th>
+                    <th>Pagado</th><th>Saldo</th><th>Entrega</th><th></th><th></th>
                 </tr>
             </thead>
             <tbody>
@@ -24,6 +24,11 @@
                     <td>${{ venta.total }}</td>
                     <td>${{ venta.monto_pagado }}</td>
                     <td class="{% if venta.saldo_pendiente > 0 %}text-danger fw-bold{% endif %}">${{ venta.saldo_pendiente }}</td>
+                    <td>
+                        {% if venta.estado_entrega == "entregado" %}<span class="badge bg-success">Entregado</span>
+                        {% elif venta.estado_entrega == "notificado" %}<span class="badge bg-info text-dark">Notificado</span>
+                        {% else %}<span class="badge bg-warning text-dark">Pendiente</span>{% endif %}
+                    </td>
                     <td><a href="{% url 'sales:venta_completar' venta.pk %}" class="btn btn-sm btn-outline-primary">Ver / cobrar</a></td>
                     <td>
                         <form method="post" action="{% url 'sales:marcar_obra_social_resuelta' venta.pk %}">
@@ -35,7 +40,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="9" class="text-center text-muted py-4">No hay ventas por obra social pendientes de revisar. 🎉</td>
+                    <td colspan="10" class="text-center text-muted py-4">No hay ventas por obra social pendientes de revisar. 🎉</td>
                 </tr>
                 {% endfor %}
             </tbody>

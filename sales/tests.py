@@ -1,5 +1,6 @@
 import datetime
 from decimal import Decimal
+from unittest import skip
 
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
@@ -313,6 +314,7 @@ class PromocionTests(TestCase):
         self.assertEqual(item.precio_unitario, 8000)  # 10000 - 20%
         self.assertIsNotNone(item.promocion)
 
+    @skip("Gestión de promociones oculta a propósito (ver inventory/urls.py); descomentar al reactivarla")
     def test_admin_only_para_crear_promocion(self):
         self.client.logout()
         empleado = User.objects.create_user("empleado", password="test12345")
@@ -324,6 +326,7 @@ class PromocionTests(TestCase):
         self.assertEqual(resp.status_code, 302)
 
 
+@skip("Devoluciones ocultas a propósito (ver sales/urls.py); descomentar al reactivarlas")
 class DevolucionTests(TestCase):
     def setUp(self):
         self.categoria = Categoria.objects.create(nombre="Armazón Receta", controla_stock=True)
