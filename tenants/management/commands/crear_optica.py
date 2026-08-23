@@ -43,4 +43,9 @@ class Command(BaseCommand):
         with tenant_context(alias):
             call_command("migrate", database=alias, interactive=False)
 
+        # Deja los roles "Administrador" y "Empleado" ya creados (vacíos, sin
+        # usuarios) para que solo falte asignarlos al dar de alta cada usuario
+        # desde /admin-panel/.
+        call_command("configurar_usuarios", tenant=slug)
+
         self.stdout.write(self.style.SUCCESS(f"Óptica '{nombre}' ({slug}) lista."))
