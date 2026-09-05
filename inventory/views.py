@@ -397,14 +397,11 @@ class ProductoListView(BaseListView):
         self.columnas_visibles = self._columnas_visibles()
         self.headers = [self.COLUMNAS[k][0] for k in self.columnas_visibles]
         ctx = super().get_context_data(**kwargs)
-        # Adjuntamos la URL de la foto (si existe) a cada fila, para el template propio
-        fotos = {p.pk: (p.foto.url if p.foto else None) for p in ctx["object_list"]}
         stock_bajo_ids = {
             p.pk for p in ctx["object_list"]
             if p.categoria.controla_stock and p.stock_actual <= p.stock_minimo
         }
         for row in ctx["rows"]:
-            row["foto_url"] = fotos.get(row["id"])
             row["stock_bajo"] = row["id"] in stock_bajo_ids
         ctx["columnas_disponibles"] = [
             {"key": k, "label": label, "activa": k in self.columnas_visibles}

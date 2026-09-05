@@ -39,7 +39,7 @@ class ProductoAdmin(admin.ModelAdmin):
             "fields": ("codigo_barras", "categoria", "proveedor", "activo"),
         }),
         ("Datos del producto", {
-            "fields": ("marca", "modelo", "color", "color_cristal", "calibre", "material", "foto"),
+            "fields": ("marca", "modelo", "color", "color_cristal", "calibre", "material"),
         }),
         ("Precio y stock", {
             "fields": (

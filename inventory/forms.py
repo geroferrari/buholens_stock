@@ -6,15 +6,6 @@ from stockero.form_utils import BootstrapFormMixin, BootstrapModelForm
 from .models import Banco, Categoria, Marca, PlanFinanciacion, Proveedor, Producto, Promocion
 
 
-def validar_imagen_producto(file):
-    max_size = 5 * 1024 * 1024
-    if file.size > max_size:
-        raise ValidationError(f"La imagen no puede ser mayor a 5 MB (tamaño actual: {file.size / 1024 / 1024:.1f} MB)")
-    mime_types_permitidos = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-    if file.content_type not in mime_types_permitidos:
-        raise ValidationError(f"Solo se permiten imágenes JPEG, PNG, GIF o WebP (tipo recibido: {file.content_type})")
-
-
 class NombreUnicoSinMayusculasMixin:
     """Valida que `nombre` no se repita ignorando mayúsculas/minúsculas
     (ej: "Generico" y "generico" cuentan como el mismo nombre)."""
@@ -71,7 +62,7 @@ class ProductoForm(BootstrapModelForm):
         fields = [
             "codigo_barras", "categoria", "proveedor",
             "marca", "modelo", "color", "color_cristal", "calibre", "material",
-            "precio_costo", "precio", "foto",
+            "precio_costo", "precio",
         ]
         # stock_minimo queda afuera del formulario a propósito: por ahora no
         # se usa (queda en 0, el default del modelo) para no pedirle ese dato
@@ -82,7 +73,6 @@ class ProductoForm(BootstrapModelForm):
         super().__init__(*args, **kwargs)
         self.fields["codigo_barras"].required = False
         self.fields["precio_costo"].required = False
-        self.fields["foto"].validators = [validar_imagen_producto]
         if self.instance.pk:
             self.fields["stock"].initial = self.instance.stock_actual
 

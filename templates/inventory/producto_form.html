@@ -15,7 +15,7 @@
 </div>
 {% endif %}
 
-<form method="post" enctype="multipart/form-data">
+<form method="post">
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
 
@@ -44,11 +44,6 @@
                 {% for error in form|field_errors:name %}<div class="text-danger small">{{ error }}</div>{% endfor %}
             </div>
             {% endfor %}
-            <div class="col-md-4" id="campo-foto">
-                <label class="form-label">{{ form|field_label:"foto" }}</label>
-                {{ form|field:"foto" }}
-                {% for error in form|field_errors:"foto" %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-            </div>
         </div>
     </div>
 
@@ -103,13 +98,13 @@ document.getElementById('btn-generar-codigo').addEventListener('click', () => {
         {% endfor %}
     };
     const CAMPOS_OCULTOS_POR_CATEGORIA = {
-        "Liquidos": ["color", "color_cristal", "material", "foto"],
-        "Lentes de Contacto": ["color_cristal", "calibre", "material", "foto"],
-        "Cristales": ["color", "calibre", "material", "foto"],
+        "Liquidos": ["color", "color_cristal", "material"],
+        "Lentes de Contacto": ["color_cristal", "calibre", "material"],
+        "Cristales": ["color", "calibre", "material"],
         "Accesorios": ["color", "calibre", "material", "color_cristal"],
-        "Reparaciones": ["color", "color_cristal", "calibre", "material", "foto"],
+        "Reparaciones": ["color", "color_cristal", "calibre", "material"],
     };
-    const TODOS_LOS_CAMPOS_TOGGLEABLES = ["color", "color_cristal", "calibre", "material", "foto", "stock_minimo", "stock"];
+    const TODOS_LOS_CAMPOS_TOGGLEABLES = ["color", "color_cristal", "calibre", "material", "stock_minimo", "stock"];
 
     const selectCategoria = document.getElementById('id_categoria');
     const labelCalibre = document.getElementById('label-calibre');

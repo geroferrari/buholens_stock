@@ -131,7 +131,6 @@
             <thead class="table-light">
                 <tr>
                     <th><input type="checkbox" id="check-all"></th>
-                    <th></th>
                     {% for col in columnas %}
                     <th>
                         {% if col.sortable %}
@@ -153,13 +152,6 @@
                     <td>
                         <input type="checkbox" class="check-producto" value="{{ row.id }}">
                         {% if row.stock_bajo %}<span title="Stock igual o por debajo del mínimo">⚠️</span>{% endif %}
-                    </td>
-                    <td>
-                        {% if row.foto_url %}
-                        <img src="{{ row.foto_url }}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:4px;">
-                        {% else %}
-                        <span class="text-muted" style="font-size:1.3rem;">🕶️</span>
-                        {% endif %}
                     </td>
                     {% for cell in row.cells %}<td>{{ cell }}</td>{% endfor %}
                     <td class="text-end text-nowrap">

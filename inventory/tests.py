@@ -103,26 +103,6 @@ class LogicaProductoTests(TestCase):
         self.categoria = Categoria.objects.create(nombre="Armazón Receta")
         self.marca = Marca.objects.create(nombre="TestMarca")
 
-    def test_producto_puede_tener_foto(self):
-        import io
-        from PIL import Image
-        from django.core.files.uploadedfile import SimpleUploadedFile
-
-        buffer = io.BytesIO()
-        Image.new("RGB", (10, 10), "blue").save(buffer, format="PNG")
-        foto = SimpleUploadedFile("test.png", buffer.getvalue(), content_type="image/png")
-
-        p = Producto.objects.create(
-            codigo_barras="4141414141", categoria=self.categoria, marca=self.marca, precio=100, foto=foto,
-        )
-        self.assertTrue(p.foto)
-        self.assertIn("productos/", p.foto.name)
-        p.foto.delete(save=False)  # limpieza del archivo de test
-
-    def test_producto_sin_foto_es_valido(self):
-        p = Producto.objects.create(codigo_barras="4242424242", categoria=self.categoria, marca=self.marca, precio=100)
-        self.assertFalse(p.foto)
-
     def test_codigo_de_barras_se_genera_automaticamente(self):
         codigo = Producto.generar_codigo_barras()
         self.assertEqual(len(codigo), 12)

@@ -40,12 +40,7 @@
                 <tbody>
                     {% for item in venta.items.all %}
                     <tr>
-                        <td>
-                            <div class="d-flex align-items-center gap-2">
-                                {% if item.producto.foto %}<img src="{{ item.producto.foto.url }}" alt="" style="width:36px;height:36px;object-fit:cover;border-radius:4px;">{% endif %}
-                                {{ item.producto }}
-                            </div>
-                        </td>
+                        <td>{{ item.producto }}</td>
                         <td>{{ item.cantidad }}</td>
                         <td>
                             {% if venta.estado == "OPEN" %}
