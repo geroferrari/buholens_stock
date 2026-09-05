@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Count, Sum
 from django.db.models.functions import Lower
+from django.utils import timezone
 
 from core.models import SoftDeleteModel
 from tenants.db_router import tenant_atomic
@@ -434,3 +436,105 @@ class Devolucion(models.Model):
 
     def __str__(self):
         return f"Devolución de {self.cantidad} x {self.producto} (${self.monto})"
+
+
+class EgresoCaja(models.Model):
+    """Salida de dinero del cajón durante el día: pago a un proveedor, un
+    vuelto, un retiro del dueño, etc. Se asume siempre en efectivo (es lo
+    único que sale físicamente del cajón) y se resta del efectivo esperado
+    al hacer el cierre de caja del día (ver CierreCaja)."""
+    fecha = models.DateField(default=timezone.localdate)
+    monto = models.DecimalField(max_digits=10, decimal_places=2)
+    concepto = models.CharField(max_length=255, help_text="Ej: pago a proveedor, vuelto, retiro del dueño.")
+    usuario = models.ForeignKey(
+        "auth.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="egresos_caja"
+    )
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-creado"]
+
+    def __str__(self):
+        return f"Egreso ${self.monto} ({self.fecha}): {self.concepto}"
+
+
+class CierreCaja(models.Model):
+    """Cierre de caja de UN día: fondo con el que arrancó, lo que el sistema
+    dice que debería haber en efectivo vs. lo contado a mano, y la
+    diferencia. Al cerrar se congela un snapshot de los totales — si después
+    se edita o anula una venta de ese día, el cierre ya hecho NO se
+    recalcula solo (queda como quedó, para revisar a mano)."""
+    fecha = models.DateField(unique=True)
+    fondo_inicial = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    # --- Congelado recién al cerrar (ver `cerrar`) ---
+    totales_por_forma_pago = models.JSONField(default=dict, blank=True)
+    total_devoluciones = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_egresos = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    efectivo_esperado = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    efectivo_contado = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    diferencia = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    observaciones = models.TextField(blank=True)
+    cerrado = models.BooleanField(default=False)
+    cerrado_por = models.ForeignKey(
+        "auth.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="cierres_caja"
+    )
+    cerrado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-fecha"]
+
+    def __str__(self):
+        return f"Caja del {self.fecha}"
+
+    @staticmethod
+    def calcular_esperado(fecha, fondo_inicial):
+        """Recalcula EN VIVO lo que dice el sistema para esa fecha: ventas
+        confirmadas por forma de pago, devoluciones y egresos. Devoluciones y
+        egresos se asumen en efectivo, que es lo único que se cuenta a mano;
+        tarjeta/transferencia/QR no afectan el cajón físico. OJO: una venta
+        pagada en dos partes (seña + saldo después) no se puede repartir por
+        fecha real de cobro con el modelo actual — el total de la seña queda
+        todo atribuido al día en que se confirmó la venta."""
+        ventas_qs = Venta.objects.filter(estado=Venta.Estado.CONFIRMADA, fecha__date=fecha)
+        labels = dict(Venta.FormaPago.choices)
+        totales_por_forma_pago = [
+            {
+                "forma_pago": labels.get(f["forma_pago"], "Sin especificar") if f["forma_pago"] else "Sin especificar",
+                "cantidad": f["cantidad"],
+                "total": str(f["total"] or 0),
+            }
+            for f in ventas_qs.values("forma_pago").annotate(total=Sum("total"), cantidad=Count("id")).order_by("forma_pago")
+        ]
+        resumen = ventas_qs.aggregate(total=Sum("total"), cantidad=Count("id"))
+        total_efectivo_ventas = (
+            ventas_qs.filter(forma_pago=Venta.FormaPago.EFECTIVO).aggregate(t=Sum("total"))["t"] or 0
+        )
+        total_devoluciones = Devolucion.objects.filter(fecha__date=fecha).aggregate(t=Sum("monto"))["t"] or 0
+        total_egresos = EgresoCaja.objects.filter(fecha=fecha).aggregate(t=Sum("monto"))["t"] or 0
+        efectivo_esperado = fondo_inicial + total_efectivo_ventas - total_devoluciones - total_egresos
+        return {
+            "totales_por_forma_pago": totales_por_forma_pago,
+            "total_general": resumen["total"] or 0,
+            "cantidad_general": resumen["cantidad"] or 0,
+            "total_devoluciones": total_devoluciones,
+            "total_egresos": total_egresos,
+            "efectivo_esperado": efectivo_esperado,
+        }
+
+    def cerrar(self, efectivo_contado, usuario, observaciones=""):
+        if self.cerrado:
+            raise ValidationError("Esta caja ya está cerrada.")
+        datos = self.calcular_esperado(self.fecha, self.fondo_inicial)
+        self.totales_por_forma_pago = datos["totales_por_forma_pago"]
+        self.total_devoluciones = datos["total_devoluciones"]
+        self.total_egresos = datos["total_egresos"]
+        self.efectivo_esperado = datos["efectivo_esperado"]
+        self.efectivo_contado = efectivo_contado
+        self.diferencia = efectivo_contado - datos["efectivo_esperado"]
+        self.observaciones = observaciones
+        self.cerrado = True
+        self.cerrado_por = usuario
+        self.cerrado_en = timezone.now()
+        self.save()

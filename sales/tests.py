@@ -10,7 +10,7 @@ from django.utils import timezone
 from customers.models import Cliente
 from inventory.models import Categoria, Marca, Producto, Promocion, mejor_promocion_para
 from prescriptions.models import Receta
-from .models import Venta, VentaItem, Vendedor, Devolucion
+from .models import Venta, VentaItem, Vendedor, Devolucion, CierreCaja, EgresoCaja
 
 PAYLOAD_XSS = '<script>alert("xss")</script>'
 
@@ -1268,3 +1268,54 @@ class ConfigurarUsuariosTests(TestCase):
         cantidad = User.objects.count()
         self._correr_caso_tipico()
         self.assertEqual(User.objects.count(), cantidad)
+
+
+class CierreCajaTests(TestCase):
+    """Cierre de caja del día: fondo inicial + ventas en efectivo - devoluciones
+    - egresos = efectivo esperado, contra lo contado a mano."""
+
+    def setUp(self):
+        self.hoy = timezone.localdate()
+        self.admin = User.objects.create_superuser("admin", password="test12345")
+        self.client.login(username="admin", password="test12345")
+        self.categoria = Categoria.objects.create(nombre="Armazón Caja", controla_stock=True)
+        self.producto = Producto.objects.create(
+            codigo_barras="9000000001", categoria=self.categoria,
+            marca=Marca.objects.create(nombre="MarcaCaja"), precio=10000, stock_actual=10,
+        )
+        Venta.objects.create(estado=Venta.Estado.CONFIRMADA, forma_pago=Venta.FormaPago.EFECTIVO, total=10000, monto_pagado=10000)
+        Venta.objects.create(estado=Venta.Estado.CONFIRMADA, forma_pago=Venta.FormaPago.TARJETA, total=5000, monto_pagado=5000)
+        Devolucion.objects.create(producto=self.producto, monto=500)
+        EgresoCaja.objects.create(fecha=self.hoy, monto=1000, concepto="Pago a proveedor", usuario=self.admin)
+
+    def _fecha_qs(self):
+        return f"?fecha={self.hoy.isoformat()}"
+
+    def test_calcula_efectivo_esperado(self):
+        self.client.post("/ventas/caja/fondo-inicial/", {"fecha": self.hoy.isoformat(), "fondo_inicial": "2000"})
+        resp = self.client.get(f"/ventas/caja/{self._fecha_qs()}")
+        # 2000 (fondo) + 10000 (efectivo) - 500 (devolución) - 1000 (egreso) = 10500.
+        self.assertEqual(resp.context["efectivo_esperado"], Decimal("10500"))
+        self.assertEqual(resp.context["total_general"], Decimal("15000"))  # incluye la de tarjeta
+
+    def test_cerrar_congela_los_numeros_y_calcula_la_diferencia(self):
+        self.client.post("/ventas/caja/fondo-inicial/", {"fecha": self.hoy.isoformat(), "fondo_inicial": "2000"})
+        self.client.post("/ventas/caja/cerrar/", {"fecha": self.hoy.isoformat(), "efectivo_contado": "10400"})
+        cierre = CierreCaja.objects.get(fecha=self.hoy)
+        self.assertTrue(cierre.cerrado)
+        self.assertEqual(cierre.efectivo_esperado, Decimal("10500"))
+        self.assertEqual(cierre.diferencia, Decimal("-100"))
+        self.assertEqual(cierre.cerrado_por, self.admin)
+
+    def test_no_se_puede_cambiar_nada_despues_de_cerrada(self):
+        self.client.post("/ventas/caja/cerrar/", {"fecha": self.hoy.isoformat(), "efectivo_contado": "9000"})
+        self.client.post("/ventas/caja/fondo-inicial/", {"fecha": self.hoy.isoformat(), "fondo_inicial": "5000"})
+        self.client.post("/ventas/caja/egresos/", {"fecha": self.hoy.isoformat(), "concepto": "otro", "monto": "100"})
+        cierre = CierreCaja.objects.get(fecha=self.hoy)
+        self.assertEqual(cierre.fondo_inicial, Decimal("0"))
+        self.assertEqual(EgresoCaja.objects.filter(fecha=self.hoy).count(), 1)  # el del setUp nomás
+
+    def test_aparece_en_el_historial(self):
+        self.client.post("/ventas/caja/cerrar/", {"fecha": self.hoy.isoformat(), "efectivo_contado": "9000"})
+        resp = self.client.get("/ventas/caja/historial/")
+        self.assertContains(resp, self.hoy.strftime("%d/%m/%Y"))

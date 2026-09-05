@@ -24,7 +24,7 @@ from prescriptions.forms import RecetaForm
 from prescriptions.models import OrdenLaboratorio, Receta
 
 from .forms import VendedorForm
-from .models import Venta, VentaItem, Vendedor, Devolucion
+from .models import Venta, VentaItem, Vendedor, Devolucion, CierreCaja, EgresoCaja
 
 MENSAJE_WHATSAPP_LISTO = "Hola! Tu anteojo ya está listo para retirar."
 
@@ -1193,10 +1193,23 @@ class DevolucionListView(AdminRequiredMixin, BaseListView):
 
 # ---------- Caja del día ----------
 
+def _fecha_caja(request):
+    import datetime
+    from django.utils import timezone
+
+    try:
+        return datetime.date.fromisoformat(request.GET.get("fecha") or request.POST.get("fecha", ""))
+    except ValueError:
+        return timezone.localdate()
+
+
 @login_required
 def caja_del_dia(request):
-    """Cuánto dinero entró en un día (default hoy), discriminado por forma de
-    pago, para hacer el cierre de caja."""
+    """Cierre de caja de un día (default hoy): fondo inicial, egresos
+    cargados, lo que el sistema dice que debería haber en efectivo y, si ya
+    se cerró, lo contado y la diferencia. Mientras no está cerrada se puede
+    seguir editando fondo/egresos; una vez cerrada queda de solo lectura con
+    los números congelados al momento del cierre."""
     from django.contrib import messages as django_messages
     from stockero.permissions import es_administrador
 
@@ -1204,34 +1217,140 @@ def caja_del_dia(request):
         django_messages.error(request, "Esta sección requiere permisos de administrador/a.")
         return redirect("home")
 
-    import datetime
-    from django.db.models import Sum, Count
-    from django.utils import timezone
+    fecha = _fecha_caja(request)
+    cierre, _creado = CierreCaja.objects.get_or_create(fecha=fecha)
+    egresos = EgresoCaja.objects.filter(fecha=fecha).select_related("usuario")
 
-    hoy = timezone.localdate()
-    try:
-        fecha = datetime.date.fromisoformat(request.GET.get("fecha", ""))
-    except ValueError:
-        fecha = hoy
-
-    ventas_qs = Venta.objects.filter(estado=Venta.Estado.CONFIRMADA, fecha__date=fecha)
-    labels = dict(Venta.FormaPago.choices)
-    filas = [
-        {
-            "forma_pago": labels.get(f["forma_pago"], "Sin especificar") if f["forma_pago"] else "Sin especificar",
-            "cantidad": f["cantidad"],
-            "total": f["total"] or 0,
-        }
-        for f in ventas_qs.values("forma_pago").annotate(total=Sum("total"), cantidad=Count("id")).order_by("forma_pago")
-    ]
-    resumen = ventas_qs.aggregate(total=Sum("total"), cantidad=Count("id"))
+    if cierre.cerrado:
+        filas = cierre.totales_por_forma_pago
+        total_general = sum((Decimal(f["total"]) for f in filas), start=Decimal("0"))
+        cantidad_general = sum(f["cantidad"] for f in filas)
+        total_devoluciones = cierre.total_devoluciones
+        total_egresos = cierre.total_egresos
+        efectivo_esperado = cierre.efectivo_esperado
+    else:
+        datos = CierreCaja.calcular_esperado(fecha, cierre.fondo_inicial)
+        filas = datos["totales_por_forma_pago"]
+        total_general = datos["total_general"]
+        cantidad_general = datos["cantidad_general"]
+        total_devoluciones = datos["total_devoluciones"]
+        total_egresos = datos["total_egresos"]
+        efectivo_esperado = datos["efectivo_esperado"]
 
     return render(request, "sales/caja_del_dia.html", {
         "fecha": fecha.isoformat(),
+        "cierre": cierre,
+        "egresos": egresos,
         "filas": filas,
-        "total_general": resumen["total"] or 0,
-        "cantidad_general": resumen["cantidad"] or 0,
+        "total_general": total_general,
+        "cantidad_general": cantidad_general,
+        "total_devoluciones": total_devoluciones,
+        "total_egresos": total_egresos,
+        "efectivo_esperado": efectivo_esperado,
     })
+
+
+@login_required
+@require_POST
+def set_fondo_inicial_caja(request):
+    from django.contrib import messages as django_messages
+    from stockero.permissions import es_administrador
+
+    if not es_administrador(request.user):
+        django_messages.error(request, "Esta sección requiere permisos de administrador/a.")
+        return redirect("home")
+
+    fecha = _fecha_caja(request)
+    cierre, _creado = CierreCaja.objects.get_or_create(fecha=fecha)
+    if cierre.cerrado:
+        django_messages.error(request, "Esta caja ya está cerrada, no se puede cambiar el fondo inicial.")
+        return redirect(f"{reverse('sales:caja_del_dia')}?fecha={fecha.isoformat()}")
+    try:
+        cierre.fondo_inicial = Decimal(request.POST.get("fondo_inicial", "").strip() or "0")
+    except InvalidOperation:
+        django_messages.error(request, "Fondo inicial inválido.")
+        return redirect(f"{reverse('sales:caja_del_dia')}?fecha={fecha.isoformat()}")
+    cierre.save(update_fields=["fondo_inicial"])
+    return redirect(f"{reverse('sales:caja_del_dia')}?fecha={fecha.isoformat()}")
+
+
+@login_required
+@require_POST
+def registrar_egreso_caja(request):
+    from django.contrib import messages as django_messages
+    from stockero.permissions import es_administrador
+
+    if not es_administrador(request.user):
+        django_messages.error(request, "Esta sección requiere permisos de administrador/a.")
+        return redirect("home")
+
+    fecha = _fecha_caja(request)
+    if CierreCaja.objects.filter(fecha=fecha, cerrado=True).exists():
+        django_messages.error(request, "Esta caja ya está cerrada, no se pueden cargar más egresos.")
+        return redirect(f"{reverse('sales:caja_del_dia')}?fecha={fecha.isoformat()}")
+
+    concepto = request.POST.get("concepto", "").strip()
+    try:
+        monto = Decimal(request.POST.get("monto", "").strip() or "0")
+    except InvalidOperation:
+        monto = Decimal("0")
+    if concepto and monto > 0:
+        EgresoCaja.objects.create(fecha=fecha, monto=monto, concepto=concepto, usuario=request.user)
+    else:
+        django_messages.error(request, "Indicá el concepto y un monto mayor a 0.")
+    return redirect(f"{reverse('sales:caja_del_dia')}?fecha={fecha.isoformat()}")
+
+
+@login_required
+@require_POST
+def cerrar_caja(request):
+    from django.contrib import messages as django_messages
+    from stockero.permissions import es_administrador
+
+    if not es_administrador(request.user):
+        django_messages.error(request, "Esta sección requiere permisos de administrador/a.")
+        return redirect("home")
+
+    fecha = _fecha_caja(request)
+    cierre, _creado = CierreCaja.objects.get_or_create(fecha=fecha)
+    try:
+        efectivo_contado = Decimal(request.POST.get("efectivo_contado", "").strip())
+    except InvalidOperation:
+        django_messages.error(request, "Indicá cuánto efectivo contaste.")
+        return redirect(f"{reverse('sales:caja_del_dia')}?fecha={fecha.isoformat()}")
+    try:
+        cierre.cerrar(
+            efectivo_contado=efectivo_contado, usuario=request.user,
+            observaciones=request.POST.get("observaciones", "").strip(),
+        )
+        django_messages.success(request, "Caja cerrada.")
+    except ValidationError as e:
+        django_messages.error(request, "; ".join(e.messages))
+    return redirect(f"{reverse('sales:caja_del_dia')}?fecha={fecha.isoformat()}")
+
+
+@login_required
+def caja_detalle(request, pk):
+    """El listado de cierres linkea acá con el pk del CierreCaja; esta pantalla
+    en cambio se maneja por fecha (?fecha=), así que solo hace de puente."""
+    cierre = get_object_or_404(CierreCaja, pk=pk)
+    return redirect(f"{reverse('sales:caja_del_dia')}?fecha={cierre.fecha.isoformat()}")
+
+
+class CierreCajaListView(AdminRequiredMixin, BaseListView):
+    model = CierreCaja
+    title = "Cierres de caja"
+    headers = ["Fecha", "Estado", "Efectivo esperado", "Efectivo contado", "Diferencia"]
+    detalle_url_name = "sales:caja_detalle"
+
+    def get_row(self, obj):
+        return [
+            obj.fecha.strftime("%d/%m/%Y"),
+            "Cerrada" if obj.cerrado else "Abierta",
+            f"${obj.efectivo_esperado}" if obj.cerrado else "—",
+            f"${obj.efectivo_contado}" if obj.cerrado else "—",
+            f"${obj.diferencia}" if obj.cerrado else "—",
+        ]
 
 
 # ---------- Dashboard ----------

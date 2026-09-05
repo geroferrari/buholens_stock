@@ -2,7 +2,10 @@
 {% block title %}Caja del día{% endblock %}
 {% block content %}
 
-<h3 class="mb-3">💰 Caja del día</h3>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h3 class="mb-0">💰 Caja del día</h3>
+    <a href="{% url 'sales:cierre_caja_lista' %}" class="btn btn-outline-secondary btn-sm">📋 Historial de cierres</a>
+</div>
 
 <form method="get" class="row g-2 mb-4 align-items-end" id="tour-fecha-caja">
     <div class="col-auto">
@@ -14,7 +17,57 @@
     </div>
 </form>
 
-<div class="card shadow-sm" id="tour-tabla-caja">
+{% if messages %}
+{% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
+{% endif %}
+
+{% if cierre.cerrado %}
+<div class="alert alert-success">
+    ✔ Caja cerrada el {{ cierre.cerrado_en|date:"d/m/Y H:i" }} por {{ cierre.cerrado_por.username|default:"—" }}.
+    {% if cierre.observaciones %}<br>Observaciones: {{ cierre.observaciones }}{% endif %}
+</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Fondo inicial</div>
+                {% if cierre.cerrado %}
+                <div class="fs-4 fw-bold">${{ cierre.fondo_inicial }}</div>
+                {% else %}
+                <form method="post" action="{% url 'sales:set_fondo_inicial_caja' %}" class="input-group mt-1">
+                    {% csrf_token %}
+                    <input type="hidden" name="fecha" value="{{ fecha }}">
+                    <span class="input-group-text">$</span>
+                    <input type="number" name="fondo_inicial" class="form-control" step="0.01" min="0" value="{{ cierre.fondo_inicial }}">
+                    <button type="submit" class="btn btn-outline-primary">Guardar</button>
+                </form>
+                <div class="form-text">Con cuánto efectivo arrancó el cajón hoy.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Devoluciones (efectivo)</div>
+                <div class="fs-4 fw-bold text-danger">-${{ total_devoluciones }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Egresos del día</div>
+                <div class="fs-4 fw-bold text-danger">-${{ total_egresos }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3" id="tour-tabla-caja">
+    <div class="card-header bg-light fw-bold">Ventas confirmadas por forma de pago</div>
     <div class="card-body">
         <table class="table align-middle mb-0">
             <thead class="table-light">
@@ -39,6 +92,90 @@
                 </tr>
             </tfoot>
         </table>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-header bg-light fw-bold">Egresos / retiros del día</div>
+    <div class="card-body">
+        <table class="table table-sm align-middle mb-3">
+            <thead class="table-light"><tr><th>Hora</th><th>Concepto</th><th>Monto</th><th>Usuario</th></tr></thead>
+            <tbody>
+                {% for egreso in egresos %}
+                <tr>
+                    <td>{{ egreso.creado|date:"H:i" }}</td>
+                    <td>{{ egreso.concepto }}</td>
+                    <td>${{ egreso.monto }}</td>
+                    <td>{{ egreso.usuario.username|default:"—" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-3">Sin egresos cargados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if not cierre.cerrado %}
+        <form method="post" action="{% url 'sales:registrar_egreso_caja' %}" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <input type="hidden" name="fecha" value="{{ fecha }}">
+            <div class="col-md-5">
+                <label class="form-label small mb-1">Concepto</label>
+                <input type="text" name="concepto" class="form-control" placeholder="Ej: pago a proveedor, vuelto, retiro...">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Monto</label>
+                <div class="input-group"><span class="input-group-text">$</span>
+                    <input type="number" name="monto" class="form-control" step="0.01" min="0">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-danger w-100">+ Agregar</button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3 border-primary">
+    <div class="card-header bg-primary text-white fw-bold">Arqueo</div>
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <div class="text-muted small text-uppercase">Efectivo esperado</div>
+                <div class="fs-3 fw-bold">${{ efectivo_esperado }}</div>
+                <div class="form-text">Fondo inicial + ventas en efectivo - devoluciones - egresos.</div>
+            </div>
+            {% if cierre.cerrado %}
+            <div class="col-md-4">
+                <div class="text-muted small text-uppercase">Efectivo contado</div>
+                <div class="fs-3 fw-bold">${{ cierre.efectivo_contado }}</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-muted small text-uppercase">Diferencia</div>
+                <div class="fs-3 fw-bold {% if cierre.diferencia < 0 %}text-danger{% elif cierre.diferencia > 0 %}text-success{% endif %}">${{ cierre.diferencia }}</div>
+            </div>
+            {% else %}
+            <div class="col-md-4">
+                <label class="form-label small mb-1">Efectivo contado (arqueo)</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" name="efectivo_contado" class="form-control" step="0.01" min="0" required form="form-cerrar-caja">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small mb-1">Observaciones (opcional)</label>
+                <input type="text" name="observaciones" class="form-control" form="form-cerrar-caja" placeholder="Ej: motivo de la diferencia">
+            </div>
+            {% endif %}
+        </div>
+
+        {% if not cierre.cerrado %}
+        <form method="post" action="{% url 'sales:cerrar_caja' %}" id="form-cerrar-caja" class="mt-3"
+              onsubmit="return confirm('¿Cerrar la caja del {{ fecha }}? Después no se puede modificar.');">
+            {% csrf_token %}
+            <input type="hidden" name="fecha" value="{{ fecha }}">
+            <button type="submit" class="btn btn-success btn-lg" id="btn-cerrar-caja">🔒 Cerrar caja</button>
+        </form>
+        {% endif %}
     </div>
 </div>
 

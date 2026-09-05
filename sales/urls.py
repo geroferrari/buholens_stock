@@ -64,6 +64,11 @@ urlpatterns = [
     # path("devoluciones/registrar/", views.devolucion_registrar, name="devolucion_registrar"),
 
     path("caja/", views.caja_del_dia, name="caja_del_dia"),
+    path("caja/fondo-inicial/", views.set_fondo_inicial_caja, name="set_fondo_inicial_caja"),
+    path("caja/egresos/", views.registrar_egreso_caja, name="registrar_egreso_caja"),
+    path("caja/cerrar/", views.cerrar_caja, name="cerrar_caja"),
+    path("caja/historial/", views.CierreCajaListView.as_view(), name="cierre_caja_lista"),
+    path("caja/<int:pk>/", views.caja_detalle, name="caja_detalle"),
     path("dashboard/", views.dashboard, name="dashboard"),
     path("historial/", views.VentaListView.as_view(), name="venta_lista"),
 ]

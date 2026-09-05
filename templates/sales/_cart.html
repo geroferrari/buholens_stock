@@ -368,5 +368,45 @@
                 {% endif %}
             </div>
         </div>
+
+        {% if venta.items.all %}
+        <div class="mt-4 pt-3 border-top">
+            <p class="text-muted small mb-2">🧾 Vista previa del ticket (se va armando a medida que cargás la venta)</p>
+            <div class="mx-auto p-3 bg-white border rounded" style="max-width: 320px; font-family: 'Courier New', Courier, monospace; font-size: 0.8rem;">
+                <div class="text-center">
+                    <strong>{{ optica.nombre|upper }}</strong><br>
+                    {% for dato in optica.datos_contacto %}{{ dato }}<br>{% endfor %}
+                    Venta #{{ venta.pk }}<br>
+                    {{ venta.fecha|date:"d/m/Y H:i" }}
+                </div>
+                <hr>
+                <div>
+                    Cliente: {{ venta.cliente|default:"Consumidor final" }}<br>
+                    Atendió: {{ venta.vendedor.nombre|default:"—" }}
+                </div>
+                <hr>
+                <table class="w-100">
+                    {% for item in venta.items.all %}
+                    <tr><td colspan="2">{{ item.producto }}</td></tr>
+                    <tr>
+                        <td>{{ item.cantidad }} x ${{ item.precio_unitario }}</td>
+                        <td class="text-end">${{ item.subtotal }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+                <hr>
+                <table class="w-100 fw-bold">
+                    <tr><td>TOTAL</td><td class="text-end">${{ venta.total }}</td></tr>
+                    {% if venta.saldo_pendiente > 0 %}
+                    <tr><td>PAGÓ</td><td class="text-end">${{ venta.monto_pagado }}</td></tr>
+                    <tr><td>SALDO PENDIENTE</td><td class="text-end">${{ venta.saldo_pendiente }}</td></tr>
+                    {% endif %}
+                </table>
+                {% if venta.forma_pago %}
+                <div>Pago: {{ venta.get_forma_pago_display }}{% if venta.cuotas %} ({{ venta.cuotas }} cuota{{ venta.cuotas|pluralize }}){% endif %}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
