@@ -104,6 +104,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'stockero.context_processors.rol_usuario',
                 'stockero.context_processors.configuracion',
+                'stockero.context_processors.features',
             ],
         },
     },

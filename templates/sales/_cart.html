@@ -165,7 +165,52 @@
                 <div class="form-text text-warning">No hay obras sociales cargadas. Cargalas en Gestión → Obras sociales.</div>
                 {% endif %}
             </div>
-            <div class="form-text">El cliente puede abonar una parte ahora (o nada). Al confirmar, la venta queda en "Ventas por obra social" para revisar y terminar a mano.</div>
+
+            <div class="mt-3">
+                <label class="form-label small mb-1">¿Cómo interviene la obra social?</label>
+                <select id="select-obra-social-tipo" class="form-select form-select-sm" {% if venta.estado != "OPEN" %}disabled{% endif %}>
+                    <option value="">— elegir —</option>
+                    {% for value, label in obra_social_tipo_choices %}
+                    <option value="{{ value }}" {% if venta.obra_social_tipo == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {% if venta.obra_social_tipo == "REI" %}
+            <div class="form-text">El cliente paga el total, como cualquier venta. Queda registrado que fue por obra social (para estadísticas) y no requiere ningún trámite después.</div>
+            {% elif venta.obra_social_tipo == "PAR" %}
+            <div class="mt-2">
+                <label class="form-label small mb-1">¿Cuánto cubre la obra social?</label>
+                <div class="input-group input-group-sm" style="max-width:220px;">
+                    <span class="input-group-text">$</span>
+                    <input type="number" id="input-obra-social-cobertura" class="form-control" step="0.01" min="0" max="{{ venta.subtotal }}" value="{{ venta.obra_social_cobertura|default_if_none:'0' }}" {% if venta.estado != "OPEN" %}disabled{% endif %}>
+                </div>
+            </div>
+            <div class="form-text">Ese monto se resta del total; el resto lo paga el cliente. Al confirmar, la venta queda en "Ventas por resolver con OS" para gestionar el trámite.</div>
+            {% elif venta.obra_social_tipo == "COM" %}
+            <div class="mt-2">
+                <label class="form-label small mb-1">¿Qué ítems cubre la obra social por completo?</label>
+                <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <tbody>
+                        {% for item in venta.items.all %}
+                        <tr>
+                            <td>{{ item.producto }}{% if item.cantidad > 1 %} (x{{ item.cantidad }}){% endif %}</td>
+                            <td>${{ item.subtotal }}</td>
+                            <td>
+                                <div class="form-check form-switch mb-0">
+                                    <input type="checkbox" role="switch" class="form-check-input chk-item-cubierto-obra-social" data-item-id="{{ item.id }}"
+                                        {% if item.cubierto_obra_social %}checked{% endif %} {% if venta.estado != "OPEN" %}disabled{% endif %}>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+            <div class="form-text">El valor de los ítems tildados se resta del total; el resto (si queda algo) lo paga el cliente. Al confirmar, la venta queda en "Ventas por resolver con OS" para gestionar el trámite.</div>
+            {% endif %}
             {% endif %}
         </div>
 
@@ -292,11 +337,16 @@
                 <div class="input-group">
                     <span class="input-group-text">$</span>
                     <input type="number" id="input-monto-pagado" class="form-control" step="0.01" min="0" max="{{ venta.total }}"
-                        value="{% if venta.es_obra_social %}0{% else %}{{ venta.total }}{% endif %}" data-total="{{ venta.total }}">
+                        value="{% if venta.es_obra_social and venta.obra_social_tipo != 'REI' %}0{% else %}{{ venta.total }}{% endif %}" data-total="{{ venta.total }}">
                     <button type="button" id="btn-paga-total" class="btn btn-outline-primary" title="Poner el total">Paga el total</button>
                 </div>
+                <div class="btn-group btn-group-sm mt-2" role="group">
+                    <button type="button" class="btn btn-outline-secondary btn-paga-porcentaje" data-porcentaje="10">10%</button>
+                    <button type="button" class="btn btn-outline-secondary btn-paga-porcentaje" data-porcentaje="25">25%</button>
+                    <button type="button" class="btn btn-outline-secondary btn-paga-porcentaje" data-porcentaje="50">50%</button>
+                </div>
                 <div class="form-text">
-                    {% if venta.es_obra_social %}
+                    {% if venta.es_obra_social and venta.obra_social_tipo != "REI" %}
                     Por obra social suele abonar solo una parte (o nada): poné cuánto paga ahora y elegí la forma de pago de ese monto. El resto queda pendiente de la obra social.
                     {% else %}
                     Si paga todo, tocá "Paga el total". Si deja una seña, poné cuánto abona. No se puede cargar más que el total (el vuelto se maneja en efectivo).

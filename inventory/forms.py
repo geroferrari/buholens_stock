@@ -58,12 +58,20 @@ class ProveedorForm(NombreUnicoSinMayusculasMixin, BootstrapModelForm):
 
 
 class ProductoForm(BootstrapModelForm):
+    # No es un campo del modelo a propósito: el stock no se pisa directo
+    # (rompería la trazabilidad de movimientos), así que las vistas lo
+    # traducen a un MovimientoStock de ingreso (alta) o ajuste (edición).
+    stock = forms.IntegerField(
+        label="Stock", min_value=0, required=False, initial=0,
+        help_text="Al crear el producto es el stock inicial. Al editar, ajusta el stock actual (queda como movimiento).",
+    )
+
     class Meta:
         model = Producto
         fields = [
             "codigo_barras", "categoria", "proveedor",
             "marca", "modelo", "color", "color_cristal", "calibre", "material",
-            "precio_costo", "porcentaje_iva", "precio", "foto",
+            "precio_costo", "precio", "foto",
         ]
         # stock_minimo queda afuera del formulario a propósito: por ahora no
         # se usa (queda en 0, el default del modelo) para no pedirle ese dato
@@ -75,6 +83,8 @@ class ProductoForm(BootstrapModelForm):
         self.fields["codigo_barras"].required = False
         self.fields["precio_costo"].required = False
         self.fields["foto"].validators = [validar_imagen_producto]
+        if self.instance.pk:
+            self.fields["stock"].initial = self.instance.stock_actual
 
     def clean_precio_costo(self):
         return self.cleaned_data.get("precio_costo") or 0

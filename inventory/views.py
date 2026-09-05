@@ -462,6 +462,16 @@ class ProductoCreateView(AdminRequiredMixin, BaseCreateView):
         ctx["orden_compra_item"] = self._orden_compra_item()
         return ctx
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        stock_inicial = form.cleaned_data.get("stock")
+        if stock_inicial:
+            MovimientoStock.objects.create(
+                producto=self.object, tipo=MovimientoStock.Tipo.INGRESO,
+                cantidad=stock_inicial, usuario=self.request.user, nota="Stock inicial al crear el producto",
+            )
+        return response
+
     def get_success_url(self):
         item = self._orden_compra_item()
         if item:
@@ -484,6 +494,19 @@ class ProductoUpdateView(AdminRequiredMixin, BaseUpdateView):
     template_name = "inventory/producto_form.html"
     cancel_url_name = "inventory:producto_lista"
     success_url = reverse_lazy("inventory:producto_lista")
+
+    def form_valid(self, form):
+        stock_anterior = self.object.stock_actual
+        response = super().form_valid(form)
+        nuevo_stock = form.cleaned_data.get("stock")
+        if nuevo_stock is not None:
+            delta = nuevo_stock - stock_anterior
+            if delta != 0:
+                MovimientoStock.objects.create(
+                    producto=self.object, tipo=MovimientoStock.Tipo.AJUSTE,
+                    cantidad=delta, usuario=self.request.user, nota="Ajuste manual desde edición de producto",
+                )
+        return response
 
     def get_success_url(self):
         if self.request.POST.get("imprimir_etiqueta") == "1":

@@ -14,8 +14,9 @@
 {% if venta.es_obra_social %}
 <div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
     <div>
-        🏥 Venta por obra social{% if venta.cliente.obra_social %}: <strong>{{ venta.cliente.obra_social }}</strong>{% endif %}.
-        {% if venta.obra_social_resuelta %}Ya está marcada como resuelta.{% else %}Todavía falta gestionar el trámite (marcarla como resuelta desde "Ventas por obra social").{% endif %}
+        🏥 Venta por obra social{% if venta.obra_social %}: <strong>{{ venta.obra_social }}</strong>{% elif venta.cliente.obra_social %}: <strong>{{ venta.cliente.obra_social }}</strong>{% endif %}
+        ({{ venta.get_obra_social_tipo_display|default:"sin definir" }}).
+        {% if venta.obra_social_resuelta %}Ya está marcada como resuelta.{% else %}Todavía falta gestionar el trámite (marcarla como resuelta desde "Ventas por resolver con OS").{% endif %}
     </div>
 </div>
 {% endif %}

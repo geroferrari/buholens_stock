@@ -34,7 +34,7 @@
                 <div class="acciones">
                     <a href="{% url 'sales:nueva_venta' %}" class="btn btn-success">Iniciar venta</a>
                     <a href="{% url 'sales:venta_pendientes_buscar' %}" class="btn btn-outline-secondary">🔎 Buscar venta pendiente</a>
-                    <a href="{% url 'sales:venta_obra_social_lista' %}" class="btn btn-outline-secondary">🏥 Ventas por obra social</a>
+                    <a href="{% url 'sales:venta_obra_social_lista' %}" class="btn btn-outline-secondary">🏥 Ventas por resolver con OS</a>
                     {% if es_admin %}<a href="{% url 'sales:venta_lista' %}" class="btn btn-outline-secondary">📋 Historial de ventas</a>{% endif %}
                 </div>
             </div>

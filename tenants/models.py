@@ -7,6 +7,7 @@ class Tenant(models.Model):
     db_name = models.CharField(max_length=63)
     activo = models.BooleanField(default=True)
     creado = models.DateTimeField(auto_now_add=True)
+    features = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return self.nombre

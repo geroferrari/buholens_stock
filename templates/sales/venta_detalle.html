@@ -44,7 +44,8 @@
             <div class="text-muted small">🏥 Obra social</div>
             <div>
                 {% if venta.obra_social %}{{ venta.obra_social }}{% elif venta.cliente.obra_social %}{{ venta.cliente.obra_social }}{% else %}—{% endif %}
-                {% if not venta.obra_social_resuelta %}<br><span class="badge bg-warning text-dark">Pendiente de gestionar</span>{% endif %}
+                <br><span class="text-muted small">{{ venta.get_obra_social_tipo_display|default:"sin definir" }}</span>
+                {% if venta.obra_social_tipo != "REI" and not venta.obra_social_resuelta %}<br><span class="badge bg-warning text-dark">Pendiente de gestionar</span>{% endif %}
             </div>
         </div>
         {% endif %}

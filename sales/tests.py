@@ -1040,6 +1040,7 @@ class VentaObraSocialTests(TestCase):
         self.client.post(f"/ventas/{venta_id}/vendedor/", {"vendedor_id": self.vendedor.id})
         self.client.post(f"/ventas/{venta_id}/escanear/", {"codigo": self.producto.codigo_barras})
         self.client.post(f"/ventas/{venta_id}/obra-social/", {"es_obra_social": "1"})
+        self.client.post(f"/ventas/{venta_id}/obra-social/tipo/", {"obra_social_tipo": "PAR"})
         self.client.post(f"/ventas/{venta_id}/confirmar/", {"monto_pagado": "0"})
         venta = Venta.objects.get(id=venta_id)
         self.assertEqual(venta.estado, Venta.Estado.CONFIRMADA)
@@ -1051,6 +1052,7 @@ class VentaObraSocialTests(TestCase):
         self.client.post(f"/ventas/{venta_id}/vendedor/", {"vendedor_id": self.vendedor.id})
         self.client.post(f"/ventas/{venta_id}/escanear/", {"codigo": self.producto.codigo_barras})
         self.client.post(f"/ventas/{venta_id}/obra-social/", {"es_obra_social": "1"})
+        self.client.post(f"/ventas/{venta_id}/obra-social/tipo/", {"obra_social_tipo": "PAR"})
         # Abona una parte pero sin forma de pago: no se confirma.
         self.client.post(f"/ventas/{venta_id}/confirmar/", {"monto_pagado": "3000"})
         venta = Venta.objects.get(id=venta_id)
@@ -1061,6 +1063,7 @@ class VentaObraSocialTests(TestCase):
         self.client.post(f"/ventas/{venta_id}/vendedor/", {"vendedor_id": self.vendedor.id})
         self.client.post(f"/ventas/{venta_id}/escanear/", {"codigo": self.producto.codigo_barras})
         self.client.post(f"/ventas/{venta_id}/obra-social/", {"es_obra_social": "1"})
+        self.client.post(f"/ventas/{venta_id}/obra-social/tipo/", {"obra_social_tipo": "PAR"})
         self.client.post(f"/ventas/{venta_id}/forma-pago/", {"forma_pago": "EFE"})
         self.client.post(f"/ventas/{venta_id}/confirmar/", {"monto_pagado": "3000"})
         venta = Venta.objects.get(id=venta_id)
@@ -1076,6 +1079,81 @@ class VentaObraSocialTests(TestCase):
         self.client.post(f"/ventas/{venta_id}/cliente/", {"cliente_id": self.cliente.id})
         # Sin marcar es_obra_social todavía, pero la obra social ya quedó lista.
         self.assertEqual(Venta.objects.get(id=venta_id).obra_social_id, self.osde.id)
+
+    def test_reintegro_cobra_el_total_y_no_queda_por_resolver(self):
+        """Tipo REINTEGRO: no se resta nada del total, el cliente paga todo
+        como una venta normal, y no requiere ningún trámite después."""
+        venta_id = self._iniciar_venta()
+        self.client.post(f"/ventas/{venta_id}/vendedor/", {"vendedor_id": self.vendedor.id})
+        self.client.post(f"/ventas/{venta_id}/escanear/", {"codigo": self.producto.codigo_barras})
+        self.client.post(f"/ventas/{venta_id}/obra-social/", {"es_obra_social": "1"})
+        self.client.post(f"/ventas/{venta_id}/obra-social/tipo/", {"obra_social_tipo": "REI"})
+        self.client.post(f"/ventas/{venta_id}/forma-pago/", {"forma_pago": "EFE"})
+        self.client.post(f"/ventas/{venta_id}/confirmar/", {})
+        venta = Venta.objects.get(id=venta_id)
+        self.assertEqual(venta.estado, Venta.Estado.CONFIRMADA)
+        self.assertEqual(venta.total, Decimal("10000"))
+        self.assertEqual(venta.monto_pagado, Decimal("10000"))
+        self.assertTrue(venta.obra_social_resuelta)
+        self.assertNotIn(venta, list(Venta.objects.filter(
+            estado=Venta.Estado.CONFIRMADA, es_obra_social=True, obra_social_resuelta=False,
+        )))
+
+    def test_parcial_resta_la_cobertura_del_total(self):
+        venta_id = self._iniciar_venta()
+        self.client.post(f"/ventas/{venta_id}/vendedor/", {"vendedor_id": self.vendedor.id})
+        self.client.post(f"/ventas/{venta_id}/escanear/", {"codigo": self.producto.codigo_barras})
+        self.client.post(f"/ventas/{venta_id}/obra-social/", {"es_obra_social": "1"})
+        self.client.post(f"/ventas/{venta_id}/obra-social/tipo/", {"obra_social_tipo": "PAR"})
+        self.client.post(f"/ventas/{venta_id}/obra-social/cobertura/", {"cobertura": "4000"})
+        venta = Venta.objects.get(id=venta_id)
+        self.assertEqual(venta.total, Decimal("6000"))
+
+    def test_completo_resta_el_subtotal_de_los_items_cubiertos(self):
+        venta_id = self._iniciar_venta()
+        self.client.post(f"/ventas/{venta_id}/vendedor/", {"vendedor_id": self.vendedor.id})
+        self.client.post(f"/ventas/{venta_id}/escanear/", {"codigo": self.producto.codigo_barras})
+        self.client.post(f"/ventas/{venta_id}/obra-social/", {"es_obra_social": "1"})
+        self.client.post(f"/ventas/{venta_id}/obra-social/tipo/", {"obra_social_tipo": "COM"})
+        item = Venta.objects.get(id=venta_id).items.get()
+        self.client.post(f"/ventas/{venta_id}/items/{item.id}/obra-social-cubierto/", {"cubierto": "1"})
+        venta = Venta.objects.get(id=venta_id)
+        self.assertEqual(venta.total, Decimal("0"))
+        self.client.post(f"/ventas/{venta_id}/confirmar/", {})
+        venta = Venta.objects.get(id=venta_id)
+        self.assertEqual(venta.estado, Venta.Estado.CONFIRMADA)
+        self.assertFalse(venta.obra_social_resuelta)
+        # Ya está paga (nada que abonar) y entregada de por sí: cae directo
+        # en "ventas por resolver con OS", no en "ventas pendientes".
+        self.assertEqual(venta.saldo_pendiente, Decimal("0"))
+        self.assertTrue(venta.entregado)
+
+    def test_completo_confirmada_aparece_en_ventas_por_resolver_con_os(self):
+        venta_id = self._iniciar_venta()
+        self.client.post(f"/ventas/{venta_id}/vendedor/", {"vendedor_id": self.vendedor.id})
+        self.client.post(f"/ventas/{venta_id}/escanear/", {"codigo": self.producto.codigo_barras})
+        self.client.post(f"/ventas/{venta_id}/obra-social/", {"es_obra_social": "1"})
+        self.client.post(f"/ventas/{venta_id}/obra-social/tipo/", {"obra_social_tipo": "COM"})
+        item = Venta.objects.get(id=venta_id).items.get()
+        self.client.post(f"/ventas/{venta_id}/items/{item.id}/obra-social-cubierto/", {"cubierto": "1"})
+        self.client.post(f"/ventas/{venta_id}/confirmar/", {})
+
+        resp = self.client.get("/ventas/obra-social/")
+        self.assertContains(resp, f"#{venta_id}")
+        resp = self.client.get("/ventas/pendientes/")
+        self.assertNotContains(resp, f"#{venta_id}")
+
+    def test_cambiar_de_tipo_descarta_lo_cargado_para_el_anterior(self):
+        venta_id = self._iniciar_venta()
+        self.client.post(f"/ventas/{venta_id}/vendedor/", {"vendedor_id": self.vendedor.id})
+        self.client.post(f"/ventas/{venta_id}/escanear/", {"codigo": self.producto.codigo_barras})
+        self.client.post(f"/ventas/{venta_id}/obra-social/", {"es_obra_social": "1"})
+        self.client.post(f"/ventas/{venta_id}/obra-social/tipo/", {"obra_social_tipo": "PAR"})
+        self.client.post(f"/ventas/{venta_id}/obra-social/cobertura/", {"cobertura": "4000"})
+        self.client.post(f"/ventas/{venta_id}/obra-social/tipo/", {"obra_social_tipo": "REI"})
+        venta = Venta.objects.get(id=venta_id)
+        self.assertEqual(venta.obra_social_cobertura, Decimal("0"))
+        self.assertEqual(venta.total, Decimal("10000"))
 
 
 class PrecioAlAgregarYTopePagoTests(TestCase):

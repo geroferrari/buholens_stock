@@ -21,6 +21,19 @@ def clear_current_tenant():
     _local.alias = None
 
 
+def tenant_has_feature(name):
+    """Chequea un feature flag del Tenant activo (Tenant.features), para
+    poder prender/apagar cosas de UI por óptica sin tocar código."""
+    alias = get_current_tenant()
+    if not alias or not alias.startswith("tenant_"):
+        return False
+    from tenants.models import Tenant
+
+    slug = alias[len("tenant_"):]
+    tenant = Tenant.objects.filter(slug=slug).first()
+    return bool(tenant and tenant.features.get(name))
+
+
 @contextmanager
 def tenant_context(alias):
     previous = get_current_tenant()

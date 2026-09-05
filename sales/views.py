@@ -42,6 +42,7 @@ def _cart_context(venta, **extra):
         "venta": venta,
         "promociones_disponibles": promociones_disponibles,
         "forma_pago_choices": Venta.FormaPago.choices,
+        "obra_social_tipo_choices": Venta.ObraSocialTipo.choices,
         "obras_sociales": ObraSocial.objects.filter(activa=True),
         # Determina si el paso "cristales" del wizard tiene algo que mostrar
         # (se salta si la venta no tiene ningún item que use receta).
@@ -231,12 +232,69 @@ def set_obra_social(request, venta_id):
     venta.es_obra_social = es_obra_social
     campos = ["es_obra_social"]
     if not es_obra_social:
-        venta.obra_social = None  # al desmarcar, se olvida cuál
-        campos.append("obra_social")
+        # Al desmarcar, se olvida todo lo elegido para obra social.
+        venta.obra_social = None
+        venta.obra_social_tipo = ""
+        venta.obra_social_cobertura = 0
+        venta.items.update(cubierto_obra_social=False)
+        campos += ["obra_social", "obra_social_tipo", "obra_social_cobertura"]
     elif venta.obra_social_id is None and venta.cliente and venta.cliente.obra_social_id:
         venta.obra_social_id = venta.cliente.obra_social_id  # default: la del cliente
         campos.append("obra_social")
     venta.save(update_fields=campos)
+    if not es_obra_social:
+        venta.recalcular_total()
+    return _render_venta_fragments(request, venta)
+
+
+@login_required
+@require_POST
+def set_obra_social_tipo(request, venta_id):
+    """Elige cómo interviene la obra social en la venta (reintegro, cubre
+    parte, o cubre el anteojo completo) — ver Venta.ObraSocialTipo."""
+    venta = get_object_or_404(Venta, pk=venta_id, estado=Venta.Estado.ABIERTA)
+    tipo = request.POST.get("obra_social_tipo", "")
+    if tipo not in Venta.ObraSocialTipo.values:
+        tipo = ""
+    venta.obra_social_tipo = tipo
+    # Al cambiar de tipo se descarta lo cargado para los otros (cobertura
+    # parcial / items cubiertos), para no dejar un monto/ítem "fantasma"
+    # restando del total si después se vuelve a cambiar de tipo.
+    if tipo != Venta.ObraSocialTipo.PARCIAL:
+        venta.obra_social_cobertura = 0
+    if tipo != Venta.ObraSocialTipo.COMPLETO:
+        venta.items.update(cubierto_obra_social=False)
+    venta.save(update_fields=["obra_social_tipo", "obra_social_cobertura"])
+    venta.recalcular_total()
+    return _render_venta_fragments(request, venta)
+
+
+@login_required
+@require_POST
+def set_obra_social_cobertura(request, venta_id):
+    """Monto que cubre la obra social (obra_social_tipo=PARCIAL): se resta
+    del total, el resto lo paga el cliente."""
+    venta = get_object_or_404(Venta, pk=venta_id, estado=Venta.Estado.ABIERTA)
+    try:
+        cobertura = Decimal(request.POST.get("cobertura", "").strip() or "0")
+    except InvalidOperation:
+        cobertura = Decimal("0")
+    venta.obra_social_cobertura = max(cobertura, Decimal("0"))
+    venta.save(update_fields=["obra_social_cobertura"])
+    venta.recalcular_total()
+    return _render_venta_fragments(request, venta)
+
+
+@login_required
+@require_POST
+def set_item_cubierto_obra_social(request, venta_id, item_id):
+    """Tilda/destilda que la obra social cubre este ítem completo
+    (obra_social_tipo=COMPLETO): su valor se resta del total."""
+    venta = get_object_or_404(Venta, pk=venta_id, estado=Venta.Estado.ABIERTA)
+    item = get_object_or_404(VentaItem, pk=item_id, venta=venta)
+    item.cubierto_obra_social = request.POST.get("cubierto") == "1"
+    item.save(update_fields=["cubierto_obra_social"])
+    venta.recalcular_total()
     return _render_venta_fragments(request, venta)
 
 
@@ -925,15 +983,12 @@ def venta_ticket(request, venta_id):
 @login_required
 def venta_pendientes_buscar(request):
     """Busca ventas ya confirmadas que quedaron con saldo pendiente de pago
-    y/o sin entregar (reservas, encargos con cristales a medida, etc), para
-    completarlas cuando el cliente vuelve a pagar el resto o a retirar."""
+    y/o sin entregar (reservas, encargos con cristales a medida, ventas por
+    obra social recién confirmadas, etc), para completarlas cuando el
+    cliente vuelve a pagar el resto o a retirar."""
     q = request.GET.get("q", "").strip()
     ventas = (
         Venta.objects.filter(estado=Venta.Estado.CONFIRMADA)
-        # Las ventas por obra social sin resolver se gestionan aparte (ver
-        # "Ventas por obra social"): acá solo interesa el saldo/entrega de
-        # las demás, para no mezclar los dos trámites.
-        .exclude(es_obra_social=True, obra_social_resuelta=False)
         .filter(Q(items__entregado=False) | Q(monto_pagado__lt=F("total")))
         .select_related("cliente", "vendedor")
         .distinct()
@@ -1006,17 +1061,19 @@ def marcar_entregado(request, venta_id):
     return redirect(next_url) if next_url else redirect("sales:venta_pendientes_buscar")
 
 
-# ---------- Ventas por obra social (para revisar y terminar a mano) ----------
+# ---------- Ventas por resolver con OS (ya cobradas/entregadas, falta el trámite) ----------
 
 @login_required
 def venta_obra_social_lista(request):
-    """Ventas confirmadas marcadas como 'por obra social' que todavía no se
-    revisaron a mano (separado de las ventas pendientes de pago/entrega:
-    acá lo que falta es gestionar el trámite con la obra social, no
-    necesariamente cobrar o entregar)."""
+    """Ventas por obra social que ya se terminaron con el cliente (cobradas y
+    entregadas, como cualquier otra venta en 'Ventas pendientes') pero
+    todavía falta cerrar el trámite administrativo con la obra social."""
     ventas = (
         Venta.objects.filter(estado=Venta.Estado.CONFIRMADA, es_obra_social=True, obra_social_resuelta=False)
+        .exclude(items__entregado=False)
+        .filter(monto_pagado__gte=F("total"))
         .select_related("cliente", "vendedor")
+        .distinct()
         .order_by("-fecha")
     )
     return render(request, "sales/venta_obra_social_lista.html", {"ventas": ventas})

@@ -55,7 +55,7 @@
     <div class="card shadow-sm mb-3" id="tour-precio-stock">
         <div class="card-header fw-bold">Precio y stock</div>
         <div class="card-body row g-3">
-            {% for name in "precio_costo,porcentaje_iva,precio"|split %}
+            {% for name in "precio_costo,precio,stock"|split %}
             <div class="col-md-3" id="campo-{{ name }}">
                 <label class="form-label">{{ form|field_label:name }}</label>
                 {{ form|field:name }}
@@ -75,7 +75,7 @@
 <script>
 window.tourSteps = [
     { element: '#tour-datos-producto', popover: { title: 'Datos del producto', description: 'Código de barras (se genera solo si lo dejás vacío), categoría, proveedor, marca y demás datos. Los campos cambian según la categoría elegida.' } },
-    { element: '#tour-precio-stock', popover: { title: 'Precio y stock', description: 'Costo, IVA y precio de venta.' } },
+    { element: '#tour-precio-stock', popover: { title: 'Precio y stock', description: 'Costo y precio de venta. El stock es el inicial al crear, o un ajuste directo al editar (queda registrado como movimiento).' } },
     { element: '#tour-guardar-producto', popover: { title: 'Guardar', description: '"Guardar e imprimir etiqueta" además abre de una la etiqueta de código de barras lista para imprimir.' } },
 ];
 </script>
@@ -109,7 +109,7 @@ document.getElementById('btn-generar-codigo').addEventListener('click', () => {
         "Accesorios": ["color", "calibre", "material", "color_cristal"],
         "Reparaciones": ["color", "color_cristal", "calibre", "material", "foto"],
     };
-    const TODOS_LOS_CAMPOS_TOGGLEABLES = ["color", "color_cristal", "calibre", "material", "foto", "stock_minimo"];
+    const TODOS_LOS_CAMPOS_TOGGLEABLES = ["color", "color_cristal", "calibre", "material", "foto", "stock_minimo", "stock"];
 
     const selectCategoria = document.getElementById('id_categoria');
     const labelCalibre = document.getElementById('label-calibre');
@@ -125,8 +125,10 @@ document.getElementById('btn-generar-codigo').addEventListener('click', () => {
         if (!info) return;
 
         if (!info.controlaStock) {
-            const el = document.getElementById('campo-stock_minimo');
-            if (el) el.classList.add('d-none');
+            ["stock_minimo", "stock"].forEach(campo => {
+                const el = document.getElementById(`campo-${campo}`);
+                if (el) el.classList.add('d-none');
+            });
         }
 
         const ocultos = CAMPOS_OCULTOS_POR_CATEGORIA[info.nombre] || [];

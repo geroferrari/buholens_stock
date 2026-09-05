@@ -116,13 +116,14 @@ class Venta(SoftDeleteModel):
     )
 
     # --- Ventas por obra social: muy customizado según cada obra social (puede
-    # que el cliente no pague nada en el momento), así que por ahora solo se
-    # marca que la venta es por obra social y queda en una cola aparte para
-    # que el dueño del negocio la revise y la termine a mano. ---
+    # que el cliente no pague nada en el momento). Primero pasan por "Ventas
+    # pendientes" como cualquier otra (saldo/entrega); recién cuando ya están
+    # cobradas y entregadas caen en "Ventas por resolver con OS", para que el
+    # dueño del negocio cierre a mano el trámite administrativo. ---
     es_obra_social = models.BooleanField(
         default=False,
         help_text="La venta se gestiona por obra social: puede que el cliente no pague nada en el "
-        "momento. Queda en 'Ventas por obra social' para revisar y terminar a mano.",
+        "momento. Una vez cobrada y entregada, queda en 'Ventas por resolver con OS'.",
     )
     obra_social = models.ForeignKey(
         ObraSocial, on_delete=models.SET_NULL, null=True, blank=True, related_name="ventas",
@@ -130,9 +131,25 @@ class Venta(SoftDeleteModel):
     )
     obra_social_resuelta = models.BooleanField(
         default=False,
-        help_text="Se marca a mano cuando ya se terminó de gestionar la venta con la obra social "
-        "(ej: se cobró o se descartó el trámite).",
+        help_text="Se marca a mano cuando ya se terminó de cerrar el trámite administrativo con la "
+        "obra social (ej: se facturó o se descartó).",
     )
+
+    class ObraSocialTipo(models.TextChoices):
+        REINTEGRO = "REI", "Reintegro de obra social, cliente paga total"
+        PARCIAL = "PAR", "Obra social cubre parte de la compra"
+        COMPLETO = "COM", "Obra social cubre el anteojo completo"
+
+    obra_social_tipo = models.CharField(
+        max_length=3, choices=ObraSocialTipo.choices, blank=True,
+        help_text="Cómo interviene la obra social en esta venta (solo si es_obra_social).",
+    )
+    # Solo aplica con obra_social_tipo=PARCIAL: se resta del total, el resto lo
+    # paga el cliente. Con COMPLETO en cambio se resta el subtotal de los items
+    # marcados VentaItem.cubierto_obra_social. Con REINTEGRO no se resta nada:
+    # la venta se cobra entera, solo queda registrado que fue por obra social
+    # (para estadísticas) y no requiere ningún trámite después.
+    obra_social_cobertura = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     class Meta:
         ordering = ["-fecha"]
@@ -154,7 +171,15 @@ class Venta(SoftDeleteModel):
                 descuento = subtotal * (self.descuento_manual_valor / 100)
             elif self.descuento_manual_tipo == self.TipoDescuentoManual.MONTO_FIJO:
                 descuento = self.descuento_manual_valor
-        self.total = max(subtotal - descuento, 0)
+        cobertura = 0
+        if self.es_obra_social:
+            if self.obra_social_tipo == self.ObraSocialTipo.PARCIAL:
+                cobertura = self.obra_social_cobertura
+            elif self.obra_social_tipo == self.ObraSocialTipo.COMPLETO:
+                cobertura = sum(
+                    (item.subtotal for item in self.items.all() if item.cubierto_obra_social), start=0
+                )
+        self.total = max(subtotal - descuento - cobertura, 0)
         self.save(update_fields=["total"])
 
     def registrar_incidencia(self, texto):
@@ -208,6 +233,8 @@ class Venta(SoftDeleteModel):
             raise ValidationError("Elegí la forma de pago antes de confirmar la venta.")
         if self.forma_pago == self.FormaPago.TARJETA and not self.cuotas:
             raise ValidationError("Indicá la cantidad de cuotas para el pago con tarjeta.")
+        if self.es_obra_social and not self.obra_social_tipo:
+            raise ValidationError("Elegí cómo interviene la obra social en esta venta.")
 
         items = list(self.items.select_related("producto").select_for_update())
         if not items:
@@ -236,9 +263,12 @@ class Venta(SoftDeleteModel):
             )
 
         self.recalcular_total()
+        # Reintegro: el cliente paga todo, como una venta normal (no hay nada
+        # que resolver después). Parcial/completo: puede abonar una parte (o
+        # nada) ahora, y lo que falta queda para "Ventas por resolver con OS".
         if monto_pagado is not None:
             self.monto_pagado = monto_pagado
-        elif self.es_obra_social:
+        elif self.es_obra_social and self.obra_social_tipo != self.ObraSocialTipo.REINTEGRO:
             self.monto_pagado = 0
         else:
             self.monto_pagado = self.total
@@ -252,7 +282,11 @@ class Venta(SoftDeleteModel):
         if self.es_obra_social and self.monto_pagado > 0 and not self.forma_pago:
             raise ValidationError("Elegí la forma de pago de lo que abona el cliente por la obra social.")
         self.estado = self.Estado.CONFIRMADA
-        self.save(update_fields=["estado", "monto_pagado"])
+        # Reintegro: solo queda registrado para estadísticas, no requiere
+        # ningún trámite después, así que no entra a "Ventas por resolver con OS".
+        if self.es_obra_social and self.obra_social_tipo == self.ObraSocialTipo.REINTEGRO:
+            self.obra_social_resuelta = True
+        self.save(update_fields=["estado", "monto_pagado", "obra_social_resuelta"])
 
     def registrar_pago_y_entrega(self, monto_adicional=None, forma_pago_saldo="", cuotas_saldo=None):
         """Para completar más adelante una venta ya confirmada: sumar un pago
@@ -333,6 +367,11 @@ class VentaItem(models.Model):
     promocion = models.ForeignKey(
         "inventory.Promocion", on_delete=models.SET_NULL, null=True, blank=True, related_name="ventas_items"
     )
+
+    # Solo aplica si la venta es por obra social con obra_social_tipo=COMPLETO:
+    # marca qué ítems (armazón/cristal) cubre la obra social por completo, para
+    # restar su valor del total (ver Venta.recalcular_total).
+    cubierto_obra_social = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["id"]

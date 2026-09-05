@@ -567,6 +567,35 @@ document.addEventListener('change', (e) => {
     });
 });
 
+// Cómo interviene la obra social: reintegro, cubre parte, o cubre el anteojo completo.
+document.addEventListener('change', (e) => {
+    if (e.target.id !== 'select-obra-social-tipo') return;
+    postForm(`/ventas/${ventaId}/obra-social/tipo/`, {obra_social_tipo: e.target.value}).then(data => {
+        aplicarFragmentos(data);
+        codigoInput.focus();
+    });
+});
+
+// Monto que cubre la obra social (tipo "parcial"): se resta del total.
+document.addEventListener('change', (e) => {
+    if (e.target.id !== 'input-obra-social-cobertura') return;
+    postForm(`/ventas/${ventaId}/obra-social/cobertura/`, {cobertura: e.target.value}).then(data => {
+        aplicarFragmentos(data);
+        codigoInput.focus();
+    });
+});
+
+// Ítems cubiertos por completo por la obra social (tipo "completo"): se
+// resta su valor del total.
+document.addEventListener('change', (e) => {
+    if (!e.target.classList.contains('chk-item-cubierto-obra-social')) return;
+    const itemId = e.target.dataset.itemId;
+    postForm(`/ventas/${ventaId}/items/${itemId}/obra-social-cubierto/`, {cubierto: e.target.checked ? '1' : '0'}).then(data => {
+        aplicarFragmentos(data);
+        codigoInput.focus();
+    });
+});
+
 // "Paga el total": llena el monto con el total (el input-group se re-renderiza
 // con cada refresco del carrito, así que se delega en document). El campo no
 // deja cargar más que el total (el vuelto se maneja en efectivo).
@@ -574,6 +603,16 @@ document.addEventListener('click', (e) => {
     if (e.target.id !== 'btn-paga-total') return;
     const inp = document.getElementById('input-monto-pagado');
     if (inp) inp.value = inp.dataset.total || 0;
+});
+
+// Botones 10%/25%/50%: completan el monto con esa fracción del total.
+document.addEventListener('click', (e) => {
+    if (!e.target.classList.contains('btn-paga-porcentaje')) return;
+    const inp = document.getElementById('input-monto-pagado');
+    if (!inp) return;
+    const total = Number(inp.dataset.total || 0);
+    const porcentaje = Number(e.target.dataset.porcentaje);
+    inp.value = (total * porcentaje / 100).toFixed(2);
 });
 document.addEventListener('input', (e) => {
     if (e.target.id !== 'input-monto-pagado') return;

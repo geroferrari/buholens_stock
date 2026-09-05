@@ -241,6 +241,15 @@ document.getElementById('input-foto-receta').addEventListener('change', (e) => {
     preview.classList.remove('d-none');
 });
 
+// El teclado numérico del celu en es-AR mete coma decimal, pero el input
+// number solo acepta punto: sin esto el navegador lo marca inválido y no
+// deja enviar el form (pasa con cualquier valor, ej: "0,75").
+document.querySelectorAll('input[type="number"]').forEach((input) => {
+    input.addEventListener('input', () => {
+        if (input.value.includes(',')) input.value = input.value.replace(',', '.');
+    });
+});
+
 // Esférico/cilíndrico/adición: anteponer visualmente el "+" al tipear un
 // valor positivo, para que quede tan explícito como el "-" (los inputs
 // number no aceptan un "+" en el propio valor, por eso va en un span aparte).
