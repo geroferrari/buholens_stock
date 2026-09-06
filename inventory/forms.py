@@ -64,6 +64,7 @@ class ProductoForm(BootstrapModelForm):
             "marca", "modelo", "color", "color_cristal", "calibre", "material",
             "precio_costo", "precio",
         ]
+        labels = {"precio": "Precio de venta"}
         # stock_minimo queda afuera del formulario a propósito: por ahora no
         # se usa (queda en 0, el default del modelo) para no pedirle ese dato
         # a nadie sin necesidad. El campo sigue existiendo en la base por si
