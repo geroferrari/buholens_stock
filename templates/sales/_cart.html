@@ -46,7 +46,7 @@
                             {% if venta.estado == "OPEN" %}
                             <div class="input-group input-group-sm" style="max-width:140px;">
                                 <span class="input-group-text">$</span>
-                                <input type="number" class="form-control input-precio-item" data-item-id="{{ item.id }}" step="0.01" min="0" value="{{ item.precio_unitario }}">
+                                <input type="number" class="form-control input-precio-item" data-item-id="{{ item.id }}" step="0.01" min="0" value="{{ item.precio_unitario|stringformat:'s' }}">
                             </div>
                             {% else %}
                             ${{ item.precio_unitario }}
@@ -148,7 +148,7 @@
                 <label class="form-label small mb-1">¿Cuánto cubre la obra social?</label>
                 <div class="input-group input-group-sm" style="max-width:220px;">
                     <span class="input-group-text">$</span>
-                    <input type="number" id="input-obra-social-cobertura" class="form-control" step="0.01" min="0" max="{{ venta.subtotal }}" value="{{ venta.obra_social_cobertura|default_if_none:'0' }}" {% if venta.estado != "OPEN" %}disabled{% endif %}>
+                    <input type="number" id="input-obra-social-cobertura" class="form-control" step="0.01" min="0" max="{{ venta.subtotal|stringformat:'s' }}" value="{{ venta.obra_social_cobertura|default_if_none:'0'|stringformat:'s' }}" {% if venta.estado != "OPEN" %}disabled{% endif %}>
                 </div>
             </div>
             <div class="form-text">Ese monto se resta del total; el resto lo paga el cliente. Al confirmar, la venta queda en "Ventas por resolver con OS" para gestionar el trámite.</div>
@@ -330,13 +330,13 @@
                     Se entrega todo ahora: se cobra el total, <strong>${{ venta.total }}</strong>.
                     Para dejar una seña, destildá arriba lo que no se lleva todavía.
                 </div>
-                <input type="hidden" id="input-monto-pagado" value="{{ venta.total }}" data-total="{{ venta.total }}">
+                <input type="hidden" id="input-monto-pagado" value="{{ venta.total|stringformat:'s' }}" data-total="{{ venta.total|stringformat:'s' }}">
                 {% else %}
                 <label class="form-label small mb-1">¿Cuánto abona?</label>
                 <div class="input-group">
                     <span class="input-group-text">$</span>
-                    <input type="number" id="input-monto-pagado" class="form-control" step="0.01" min="0" max="{{ venta.total }}"
-                        value="{% if venta.es_obra_social and venta.obra_social_tipo != 'REI' %}0{% else %}{{ venta.total }}{% endif %}" data-total="{{ venta.total }}">
+                    <input type="number" id="input-monto-pagado" class="form-control" step="0.01" min="0" max="{{ venta.total|stringformat:'s' }}"
+                        value="{% if venta.es_obra_social and venta.obra_social_tipo != 'REI' %}0{% else %}{{ venta.total|stringformat:'s' }}{% endif %}" data-total="{{ venta.total|stringformat:'s' }}">
                     <button type="button" id="btn-paga-total" class="btn btn-outline-primary" title="Poner el total">Paga el total</button>
                 </div>
                 <div class="btn-group btn-group-sm mt-2" role="group">

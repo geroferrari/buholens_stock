@@ -84,16 +84,17 @@ function renderRecetaDetalleHtml(r) {
     `;
 }
 
-// ---- Wizard: la pantalla se recorre paso a paso (vendedor, cliente,
+// ---- Wizard: la pantalla se recorre paso a paso (vendedor, cliente, receta,
 // productos, cristales, obra social, forma de pago, promociones, entrega y
 // pago) en vez de mostrar todo junto. Las claves son los data-step de cada
-// tarjeta (con huecos: no hay paso 3 en el HTML, y el 6 se fusionó con el 11)
-// — pasosVisibles() filtra los que no aplican y todo lo demás (numeración de
-// "Paso X de Y", las pastillas de progreso) se calcula por POSICIÓN en esa
-// lista filtrada, no por esta clave cruda, así los números siempre quedan
-// correlativos aunque se salteen pasos.
+// tarjeta (con huecos: el 6 se fusionó con el 11) — el paso 3 (Receta) vive
+// DENTRO de _cliente_info.html, anidado en el wrapper del paso 2, no tiene
+// tarjeta propia en pos.html. pasosVisibles() filtra los que no aplican y
+// todo lo demás (numeración de "Paso X de Y", las pastillas de progreso) se
+// calcula por POSICIÓN en esa lista filtrada, no por esta clave cruda, así
+// los números siempre quedan correlativos aunque se salteen pasos.
 const WIZARD_LABELS = {
-    1: 'Vendedor', 2: 'Cliente', 4: 'Productos', 5: 'Cristales',
+    1: 'Vendedor', 2: 'Cliente', 3: 'Receta', 4: 'Productos', 5: 'Cristales',
     7: 'Obra social', 8: 'Forma de pago', 9: 'Promociones',
     10: 'Observaciones', 11: 'Entrega y pago',
 };
@@ -147,7 +148,11 @@ function mostrarPaso(n) {
     wizardStep = n;
     wizardMaxVisitado = Math.max(wizardMaxVisitado, n);
     document.querySelectorAll('.wizard-step').forEach(el => {
-        el.style.display = (Number(el.dataset.step) === n) ? '' : 'none';
+        // Normalmente cada tarjeta pertenece a un solo paso (data-step), pero
+        // alguna (ver #tour-paso2) tiene que quedar visible en varios a la vez
+        // porque adentro anida contenido de más de un paso (data-steps="2,3").
+        const pasosDeEsteEl = (el.dataset.steps || el.dataset.step || '').split(',').map(Number);
+        el.style.display = pasosDeEsteEl.includes(n) ? '' : 'none';
     });
     const idx = pasos.indexOf(n);
     document.getElementById('wizard-back').disabled = idx <= 0;

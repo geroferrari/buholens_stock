@@ -208,7 +208,8 @@
         </div>
     </div>
 
-    <div class="col-12 wizard-step" data-step="2" id="tour-paso2">
+    {# data-steps (no data-step): sigue visible en el paso 2 (cliente) Y el 3 (receta), porque _cliente_info.html anida el contenido de ambos pasos adentro de esta misma tarjeta. #}
+    <div class="col-12 wizard-step" data-steps="2,3" id="tour-paso2">
         <div class="card shadow-sm">
             <div class="card-header bg-light fw-bold small text-uppercase text-muted">Elegir cliente</div>
             <div class="card-body">

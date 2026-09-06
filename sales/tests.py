@@ -1225,6 +1225,22 @@ class PrecioAlAgregarYTopePagoTests(TestCase):
         item = Venta.objects.get(id=venta_id).items.get()
         self.assertEqual(item.precio_unitario, Decimal("9000"))
 
+    def test_data_total_del_input_de_pago_no_queda_localizado_con_coma(self):
+        """LANGUAGE_CODE es-ar hace que {{ venta.total }} se renderice con
+        coma decimal ("12500,00"): un <input type=number> lo descarta en
+        silencio (queda vacío) y Number("12500,00") en JS da NaN. Los
+        atributos que el JS necesita parsear (value/data-total/max) tienen
+        que ir con |stringformat:'s' para forzar el punto."""
+        venta_id = self._iniciar_venta()
+        self.client.post(f"/ventas/{venta_id}/vendedor/", {"vendedor_id": self.vendedor.id})
+        resp = self.client.post(f"/ventas/{venta_id}/escanear/", {"codigo": self.producto.codigo_barras})
+        cart_html = resp.json()["cart_html"]
+        # Los atributos que el JS parsea van con punto (aunque el total se
+        # muestre con coma al humano en el resto de la pantalla, sin problema).
+        self.assertIn('data-total="10000.00"', cart_html)
+        self.assertIn('value="10000.00" data-total="10000.00"', cart_html)
+        self.assertIn('value="10000.00"', cart_html)  # precio editable del item
+
     def test_no_se_registra_pago_mayor_al_total(self):
         venta_id = self._iniciar_venta()
         self.client.post(f"/ventas/{venta_id}/vendedor/", {"vendedor_id": self.vendedor.id})
