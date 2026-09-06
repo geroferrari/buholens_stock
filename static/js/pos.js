@@ -357,47 +357,16 @@ function confirmarYAgregar(codigo, cantidad, precio) {
     });
 }
 
-// Modal compartido para confirmar precio/cantidad de un artículo elegido del
-// catálogo o de cristales, ANTES de sumarlo al carrito (donde ya no se edita).
-const modalConfirmarItemEl = document.getElementById('modal-confirmar-item');
-const modalConfirmarItem = new bootstrap.Modal(modalConfirmarItemEl);
-function abrirConfirmarItem(p, cerrarModalId) {
-    document.getElementById('ci-nombre').textContent = p.nombre || p.label;
-    document.getElementById('ci-stock').textContent = p.controla_stock
-        ? `Stock disponible: ${p.stock_actual}` : 'Producto a medida (sin control de stock)';
-    document.getElementById('ci-precio').value = p.precio;
-    document.getElementById('ci-cantidad').value = 1;
-
-    const btn = document.getElementById('ci-confirmar');
-    const nuevo = btn.cloneNode(true); // limpia listeners previos
-    btn.parentNode.replaceChild(nuevo, btn);
-    nuevo.addEventListener('click', () => {
-        postForm(`/ventas/${ventaId}/catalogo/agregar/`, {
-            producto_id: p.id,
-            cantidad: document.getElementById('ci-cantidad').value || '1',
-            precio: document.getElementById('ci-precio').value,
-        }).then(data => {
-            aplicarFragmentos(data);
-            modalConfirmarItem.hide();
-            codigoInput.focus();
-        });
+// Agrega directo un producto elegido en un buscador (catálogo o cristales),
+// sin popup de confirmación de precio/cantidad — el precio se puede ajustar
+// después desde el carrito (columna "Actualizar precio").
+function agregarItemCatalogo(productoId) {
+    postForm(`/ventas/${ventaId}/catalogo/agregar/`, {producto_id: productoId}).then(data => {
+        aplicarFragmentos(data);
+        codigoInput.focus();
     });
-
-    // Se cierra el modal de búsqueda y, recién cuando terminó de cerrarse, se
-    // abre el de confirmación (evita que queden dos backdrops encimados).
-    if (cerrarModalId) {
-        const el = document.getElementById(cerrarModalId);
-        el.addEventListener('hidden.bs.modal', () => modalConfirmarItem.show(), {once: true});
-        bootstrap.Modal.getOrCreateInstance(el).hide();
-    } else {
-        modalConfirmarItem.show();
-    }
 }
-modalConfirmarItemEl.addEventListener('shown.bs.modal', () => {
-    document.getElementById('ci-precio').focus();
-    document.getElementById('ci-precio').select();
-});
-modalConfirmarItemEl.addEventListener('hidden.bs.modal', () => codigoInput.focus());
+
 
 // Cada Enter en el input del lector agrega directo, sin popup de confirmación
 // (el precio y la cantidad se pueden ajustar después, ya en el carrito). El
@@ -424,7 +393,7 @@ document.addEventListener('click', (e) => {
         && !e.target.closest('#cliente-info-container')
         && !e.target.closest('#cart-container')
         && !e.target.closest('#modal-agregar-producto') && !e.target.closest('#modal-agregar-cristal')
-        && !e.target.closest('#modal-item-express') && !e.target.closest('#modal-confirmar-item')
+        && !e.target.closest('#modal-item-express')
         && !e.target.closest('#modal-receta-sugerida')
         && !e.target.closest('#modal-receta-nueva') && !e.target.closest('#modal-ver-receta')) {
         codigoInput.focus();
@@ -760,7 +729,8 @@ catalogoBuscar.addEventListener('input', () => {
                     btn.dataset.id = p.id;
                     btn.textContent = p.label + (p.controla_stock ? ` (stock: ${p.stock_actual})` : '');
                     btn.addEventListener('click', () => {
-                        abrirConfirmarItem(p, 'modal-agregar-producto');
+                        agregarItemCatalogo(p.id);
+                        bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-agregar-producto')).hide();
                         resultados.innerHTML = '';
                         catalogoBuscar.value = '';
                     });
@@ -796,7 +766,8 @@ function cargarCristales(q) {
                 btn.dataset.id = p.id;
                 btn.textContent = p.label;
                 btn.addEventListener('click', () => {
-                    abrirConfirmarItem(p, 'modal-agregar-cristal');
+                    agregarItemCatalogo(p.id);
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-agregar-cristal')).hide();
                     resultados.innerHTML = '';
                     cristalBuscar.value = '';
                 });

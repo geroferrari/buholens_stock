@@ -145,39 +145,6 @@
     </div>
 </div>
 
-<div class="modal fade" id="modal-confirmar-item" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Confirmar artículo</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-1"><strong id="ci-nombre"></strong></p>
-                <p id="ci-stock" class="text-muted small mb-2"></p>
-                <div class="row g-2">
-                    <div class="col-6">
-                        <label class="form-label mb-1">Precio</label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" id="ci-precio" class="form-control" step="0.01" min="0">
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label mb-1">Cantidad</label>
-                        <input type="number" id="ci-cantidad" class="form-control" min="1" value="1">
-                    </div>
-                </div>
-                <div class="form-text">Revisá el precio: podés ajustarlo acá antes de agregarlo. Una vez en el carrito ya no se edita.</div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" id="ci-confirmar" class="btn btn-success">Agregar a la venta</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <div id="wizard-progress" class="mb-3 d-flex flex-wrap gap-1"></div>
 
 <div class="row g-4">
