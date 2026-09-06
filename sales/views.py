@@ -767,38 +767,6 @@ def set_precio_item(request, venta_id, item_id):
 
 
 @login_required
-@require_GET
-def consultar_codigo(request, venta_id):
-    """Consulta (sin efectos) qué producto corresponde a un código escaneado,
-    para mostrar un popup de confirmación de cantidad ANTES de agregarlo al
-    carrito de verdad — así se evita sumar de más si el lector dispara dos
-    veces o si se vuelve a escanear por error algo que ya está en el carrito."""
-    venta = get_object_or_404(Venta, pk=venta_id, estado=Venta.Estado.ABIERTA)
-    codigo = request.GET.get("codigo", "").strip()
-
-    try:
-        producto = Producto.objects.select_related("categoria", "marca").get(codigo_barras=codigo, activo=True)
-    except Producto.DoesNotExist:
-        return JsonResponse({"encontrado": False, "codigo": codigo})
-
-    if not producto.categoria.controla_stock:
-        return JsonResponse({
-            "encontrado": True, "a_medida": True,
-            "mensaje": f"{producto} es un producto a medida (ej: cristal): buscalo en 'Cristales y otros productos a medida', no se escanea.",
-        })
-
-    item_actual = venta.items.filter(producto=producto).first()
-    return JsonResponse({
-        "encontrado": True,
-        "a_medida": False,
-        "producto": str(producto),
-        "precio": str(producto.precio),
-        "stock_actual": producto.stock_actual,
-        "cantidad_en_carrito": item_actual.cantidad if item_actual else 0,
-    })
-
-
-@login_required
 @require_POST
 @tenant_atomic
 def escanear(request, venta_id):

@@ -347,11 +347,6 @@ document.getElementById('btn-guardar-receta-nueva').addEventListener('click', ()
 });
 
 const codigoInput = document.getElementById('codigo-barras-input');
-const modalEscaneoEl = document.getElementById('modal-escaneo');
-const modalEscaneo = new bootstrap.Modal(modalEscaneoEl);
-const modalEscaneoTitulo = document.getElementById('modal-escaneo-titulo');
-const modalEscaneoBody = document.getElementById('modal-escaneo-body');
-const modalEscaneoFooter = document.getElementById('modal-escaneo-footer');
 
 function confirmarYAgregar(codigo, cantidad, precio) {
     const datos = {codigo, cantidad};
@@ -404,79 +399,19 @@ modalConfirmarItemEl.addEventListener('shown.bs.modal', () => {
 });
 modalConfirmarItemEl.addEventListener('hidden.bs.modal', () => codigoInput.focus());
 
-// Cada Enter en el input del lector primero CONSULTA (sin efectos) qué
-// producto es antes de sumarlo de verdad: así se puede confirmar la cantidad
-// en un popup y evitar duplicados si el lector "tipea" el código dos veces o
-// si sin querer se vuelve a pasar un producto que ya está en el carrito.
+// Cada Enter en el input del lector agrega directo, sin popup de confirmación
+// (el precio y la cantidad se pueden ajustar después, ya en el carrito). El
+// endpoint /escanear/ ya cubre los casos raros por su cuenta: código no
+// encontrado, producto a medida (no se escanea) o sin stock — todos vuelven
+// como error en el carrito, con botón de "forzar" cuando corresponde.
 codigoInput.addEventListener('keydown', function(e) {
     if (e.key !== 'Enter') return;
     e.preventDefault();
     const codigo = codigoInput.value.trim();
-    const cantidadPedida = 1;
     codigoInput.value = '';
     if (!codigo) return;
-
-    fetch(`/ventas/${ventaId}/escanear/consultar/?codigo=${encodeURIComponent(codigo)}`)
-        .then(r => r.json())
-        .then(data => {
-            if (!data.encontrado) {
-                modalEscaneoTitulo.textContent = 'Producto no encontrado';
-                modalEscaneoBody.innerHTML = `
-                    <p>No se encontró ningún producto con el código <strong>${codigo}</strong>.</p>
-                    <p class="text-muted small">Este intento queda registrado en "Códigos no encontrados" (menú Gestión) para revisar después.</p>`;
-                modalEscaneoFooter.innerHTML = `
-                    <a href="/inventario/productos/nuevo/?codigo_barras=${encodeURIComponent(codigo)}" target="_blank" class="btn btn-primary">+ Cargar este producto ahora</a>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>`;
-                // Igual se registra el intento en el carrito/log, aunque no se confirme nada.
-                confirmarYAgregar(codigo, cantidadPedida);
-                modalEscaneo.show();
-                return;
-            }
-            if (data.a_medida) {
-                modalEscaneoTitulo.textContent = 'Producto a medida';
-                modalEscaneoBody.innerHTML = `<p>${data.mensaje}</p>`;
-                modalEscaneoFooter.innerHTML = `<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Entendido</button>`;
-                modalEscaneo.show();
-                return;
-            }
-
-            modalEscaneoTitulo.textContent = 'Confirmar producto';
-            const yaEnCarrito = data.cantidad_en_carrito > 0
-                ? `<p class="text-warning">⚠️ Ya hay <strong>${data.cantidad_en_carrito}</strong> unidad(es) de este producto en el carrito.</p>` : '';
-            modalEscaneoBody.innerHTML = `
-                <p class="mb-1"><strong>${data.producto}</strong></p>
-                <p class="text-muted mb-2">Stock disponible: ${data.stock_actual}</p>
-                ${yaEnCarrito}
-                <div class="row g-2">
-                    <div class="col-6">
-                        <label class="form-label">Precio</label>
-                        <div class="input-group"><span class="input-group-text">$</span>
-                        <input type="number" id="modal-escaneo-precio" class="form-control" step="0.01" min="0" value="${data.precio}"></div>
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label">Cantidad</label>
-                        <input type="number" id="modal-escaneo-cantidad" class="form-control" min="1" value="${cantidadPedida}">
-                    </div>
-                </div>
-                <div class="form-text">Revisá el precio: podés ajustarlo. En el carrito ya no se edita.</div>`;
-            modalEscaneoFooter.innerHTML = `
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" id="modal-escaneo-confirmar" class="btn btn-success">Confirmar</button>`;
-            modalEscaneo.show();
-            document.getElementById('modal-escaneo-confirmar').addEventListener('click', () => {
-                const cantidad = parseInt(document.getElementById('modal-escaneo-cantidad').value) || 1;
-                const precio = document.getElementById('modal-escaneo-precio').value;
-                modalEscaneo.hide();
-                confirmarYAgregar(codigo, cantidad, precio);
-            });
-            modalEscaneoEl.addEventListener('shown.bs.modal', () => {
-                document.getElementById('modal-escaneo-cantidad')?.focus();
-                document.getElementById('modal-escaneo-cantidad')?.select();
-            }, {once: true});
-        });
+    confirmarYAgregar(codigo, 1);
 });
-
-modalEscaneoEl.addEventListener('hidden.bs.modal', () => codigoInput.focus());
 
 // Mantener el foco en el input del lector, para que un lector físico (USB o
 // Bluetooth) siempre pueda "tipear" ahí.
@@ -490,7 +425,7 @@ document.addEventListener('click', (e) => {
         && !e.target.closest('#cart-container')
         && !e.target.closest('#modal-agregar-producto') && !e.target.closest('#modal-agregar-cristal')
         && !e.target.closest('#modal-item-express') && !e.target.closest('#modal-confirmar-item')
-        && !e.target.closest('#modal-escaneo') && !e.target.closest('#modal-receta-sugerida')
+        && !e.target.closest('#modal-receta-sugerida')
         && !e.target.closest('#modal-receta-nueva') && !e.target.closest('#modal-ver-receta')) {
         codigoInput.focus();
     }

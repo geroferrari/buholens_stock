@@ -39,7 +39,6 @@ urlpatterns = [
     path("<int:venta_id>/catalogo/buscar/", views.buscar_catalogo, name="buscar_catalogo"),
     path("<int:venta_id>/catalogo/agregar/", views.agregar_item_catalogo, name="agregar_item_catalogo"),
     path("<int:venta_id>/express/agregar/", views.agregar_item_express, name="agregar_item_express"),
-    path("<int:venta_id>/escanear/consultar/", views.consultar_codigo, name="consultar_codigo"),
     path("<int:venta_id>/escanear/", views.escanear, name="escanear"),
     path("<int:venta_id>/items/<int:item_id>/quitar/", views.quitar_item, name="quitar_item"),
     path("<int:venta_id>/items/<int:item_id>/precio/", views.set_precio_item, name="set_precio_item"),
