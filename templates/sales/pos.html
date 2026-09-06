@@ -289,6 +289,10 @@
     <button type="button" id="wizard-next" class="btn btn-primary">Siguiente →</button>
 </div>
 
+<div id="resumen-venta-container" class="mt-2">
+    {% include "sales/_resumen_venta.html" %}
+</div>
+
 <script>
 // El punto de venta es un wizard (pos.js) que oculta los pasos que no están
 // activos: Driver.js no puede resaltar bien una tarjeta en display:none, así

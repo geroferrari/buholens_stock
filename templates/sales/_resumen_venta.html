@@ -1,0 +1,14 @@
+<div class="card shadow-sm border-secondary-subtle">
+    <div class="card-body py-2">
+        <div class="d-flex flex-wrap gap-4 align-items-center small">
+            <div><span class="text-muted">Cliente:</span> <strong>{{ venta.cliente|default:"Sin cliente" }}</strong></div>
+            <div><span class="text-muted">Vendedor/a:</span> <strong>{{ venta.vendedor.nombre|default:"—" }}</strong></div>
+            <div><span class="text-muted">Items:</span> <strong>{{ venta.items.count }}</strong></div>
+            <div><span class="text-muted">Forma de pago:</span> <strong>{{ venta.get_forma_pago_display|default:"—" }}</strong></div>
+            {% if venta.es_obra_social %}
+            <div><span class="text-muted">Obra social:</span> <strong>{{ venta.obra_social|default:"—" }}{% if venta.obra_social_tipo %} ({{ venta.get_obra_social_tipo_display }}){% endif %}</strong></div>
+            {% endif %}
+            <div class="ms-auto"><span class="text-muted">Total:</span> <strong class="fs-5">${{ venta.total }}</strong></div>
+        </div>
+    </div>
+</div>

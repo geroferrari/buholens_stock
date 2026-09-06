@@ -47,6 +47,13 @@ def _cart_context(venta, **extra):
         # Determina si el paso "cristales" del wizard tiene algo que mostrar
         # (se salta si la venta no tiene ningún item que use receta).
         "hay_items_con_receta": any(i.producto.categoria.usa_receta for i in venta.items.all()),
+        # Los pasos "cristales" (receta) y "obra social" necesitan saber quién
+        # es el cliente de verdad: si no se cargó ninguno, o solo se guardó el
+        # mail (alta rápida sin nombre/apellido/DNI), no tiene sentido pedir
+        # una receta ni gestionar un trámite de obra social a nombre de nadie.
+        "cliente_completo": bool(
+            venta.cliente_id and (venta.cliente.nombre or venta.cliente.apellido or venta.cliente.dni)
+        ),
         **extra,
     }
 
@@ -88,6 +95,7 @@ def _venta_fragments_payload(request, venta, cart_template="sales/_cart.html", r
     payload = {
         "cliente_html": render_to_string("sales/_cliente_info.html", context, request=request),
         "cart_html": render_to_string(cart_template, context, request=request),
+        "resumen_html": render_to_string("sales/_resumen_venta.html", context, request=request),
     }
     if receta_sugerida_candidata:
         payload["receta_sugerida"] = _receta_detalle_dict(receta_sugerida_candidata)

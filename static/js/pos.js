@@ -34,6 +34,7 @@ function postForm(url, data) {
 function aplicarFragmentos(data) {
     document.getElementById('cliente-info-container').innerHTML = data.cliente_html;
     document.getElementById('cart-container').innerHTML = data.cart_html;
+    document.getElementById('resumen-venta-container').innerHTML = data.resumen_html;
     rebindCartEvents();
     poblarSelectRecetaVenta();
     // El carrito puede traer el buscador de obra social recién renderizado.
@@ -100,9 +101,20 @@ function hayCristalesEnCarrito() {
     return card ? card.dataset.hayItemsConReceta === '1' : false;
 }
 
+// Sin cliente cargado (o solo con el mail, alta rápida sin nombre/apellido/DNI)
+// no tiene sentido pedir receta ni gestionar obra social a nombre de nadie.
+function clienteCompleto() {
+    const card = document.querySelector('#cart-container [data-cliente-completo]');
+    return card ? card.dataset.clienteCompleto === '1' : false;
+}
+
 function pasosVisibles() {
     const todos = Object.keys(WIZARD_LABELS).map(Number);
-    return hayCristalesEnCarrito() ? todos : todos.filter(p => p !== 5);
+    return todos.filter(p => {
+        if (p === 5) return hayCristalesEnCarrito() && clienteCompleto();
+        if (p === 7) return clienteCompleto();
+        return true;
+    });
 }
 
 function renderWizardProgress() {

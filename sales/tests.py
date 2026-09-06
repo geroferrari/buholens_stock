@@ -224,6 +224,23 @@ class ClienteEnVentaTests(TestCase):
         venta = Venta.objects.get(id=venta_id)
         self.assertIsNone(venta.cliente)
 
+    def test_sin_cliente_el_carrito_marca_cliente_incompleto(self):
+        venta_id = self._iniciar_venta()
+        resp = self.client.post(f"/ventas/{venta_id}/vendedor/", {"vendedor_id": ""})
+        self.assertIn('data-cliente-completo="0"', resp.json()["cart_html"])
+
+    def test_cliente_solo_con_mail_marca_cliente_incompleto(self):
+        venta_id = self._iniciar_venta()
+        resp = self.client.post(f"/ventas/{venta_id}/cliente/email-rapido/", {"email": "sol@ejemplo.com"})
+        self.assertIn('data-cliente-completo="0"', resp.json()["cart_html"])
+
+    def test_cliente_con_nombre_marca_cliente_completo(self):
+        venta_id = self._iniciar_venta()
+        resp = self.client.post(f"/ventas/{venta_id}/cliente/nuevo-rapido/", {
+            "nombre": "Ana Gómez", "dni": "", "telefono": "", "email": "", "direccion": "",
+        })
+        self.assertIn('data-cliente-completo="1"', resp.json()["cart_html"])
+
 
 class PromocionTests(TestCase):
     def setUp(self):
@@ -1139,9 +1156,9 @@ class VentaObraSocialTests(TestCase):
         self.client.post(f"/ventas/{venta_id}/confirmar/", {})
 
         resp = self.client.get("/ventas/obra-social/")
-        self.assertContains(resp, f"#{venta_id}")
+        self.assertContains(resp, f">#{venta_id}<")
         resp = self.client.get("/ventas/pendientes/")
-        self.assertNotContains(resp, f"#{venta_id}")
+        self.assertNotContains(resp, f">#{venta_id}<")
 
     def test_cambiar_de_tipo_descarta_lo_cargado_para_el_anterior(self):
         venta_id = self._iniciar_venta()
