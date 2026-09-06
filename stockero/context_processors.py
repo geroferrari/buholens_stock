@@ -16,7 +16,7 @@ def features(request):
 
 
 def configuracion(request):
-    """Deja los datos de la óptica (nombre, logo, color, contacto) disponibles en
+    """Deja los datos de la óptica (nombre, color, contacto) disponibles en
     TODAS las plantillas como `optica`. Es lo que hace que la app no tenga ningún
     nombre de óptica escrito en el código."""
     return {"optica": Configuracion.actual()}

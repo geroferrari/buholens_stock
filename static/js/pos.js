@@ -84,14 +84,18 @@ function renderRecetaDetalleHtml(r) {
     `;
 }
 
-// ---- Wizard: la pantalla se recorre paso a paso (vendedor, cliente, receta,
-// productos, cristales, entrega, obra social, forma de pago, promociones,
-// pago) en vez de mostrar todo junto. El paso 5 (cristales) se salta solo si
-// la venta no tiene ningún item que use receta.
+// ---- Wizard: la pantalla se recorre paso a paso (vendedor, cliente,
+// productos, cristales, obra social, forma de pago, promociones, entrega y
+// pago) en vez de mostrar todo junto. Las claves son los data-step de cada
+// tarjeta (con huecos: no hay paso 3 en el HTML, y el 6 se fusionó con el 11)
+// — pasosVisibles() filtra los que no aplican y todo lo demás (numeración de
+// "Paso X de Y", las pastillas de progreso) se calcula por POSICIÓN en esa
+// lista filtrada, no por esta clave cruda, así los números siempre quedan
+// correlativos aunque se salteen pasos.
 const WIZARD_LABELS = {
-    1: 'Vendedor', 2: 'Cliente', 3: 'Receta', 4: 'Productos', 5: 'Cristales',
-    6: 'Entrega', 7: 'Obra social', 8: 'Forma de pago', 9: 'Promociones',
-    10: 'Observaciones', 11: 'Pago',
+    1: 'Vendedor', 2: 'Cliente', 4: 'Productos', 5: 'Cristales',
+    7: 'Obra social', 8: 'Forma de pago', 9: 'Promociones',
+    10: 'Observaciones', 11: 'Entrega y pago',
 };
 let wizardStep = 1;
 let wizardMaxVisitado = 1;
@@ -121,11 +125,15 @@ function renderWizardProgress() {
     const cont = document.getElementById('wizard-progress');
     if (!cont) return;
     cont.innerHTML = '';
-    pasosVisibles().forEach(p => {
+    // El número de la pastilla es la posición en la lista de pasos VISIBLES
+    // ahora mismo (no el data-step crudo): si se agrega/saca un cliente y
+    // aparecen o desaparecen "Cristales"/"Obra social", la numeración se
+    // reacomoda sola en vez de quedar con huecos (ej: "1, 2, 4, 5...").
+    pasosVisibles().forEach((p, idx) => {
         const pill = document.createElement('button');
         pill.type = 'button';
         pill.className = 'btn btn-sm ' + (p === wizardStep ? 'btn-primary' : (p <= wizardMaxVisitado ? 'btn-outline-primary' : 'btn-outline-secondary disabled'));
-        pill.textContent = `${p}. ${WIZARD_LABELS[p]}`;
+        pill.textContent = `${idx + 1}. ${WIZARD_LABELS[p]}`;
         if (p <= wizardMaxVisitado) pill.addEventListener('click', () => mostrarPaso(p));
         cont.appendChild(pill);
     });
@@ -608,13 +616,29 @@ document.addEventListener('change', (e) => {
     });
 });
 
+// Al elegir un monto con "Paga el total" o un botón de porcentaje, se fija:
+// el input queda bloqueado (no se puede tipear otra cosa por error) y el
+// valor elegido se muestra abajo, con un link para volver a habilitarlo.
+function fijarMontoPagado(valor) {
+    const inp = document.getElementById('input-monto-pagado');
+    if (!inp) return;
+    inp.value = valor;
+    inp.disabled = true;
+    const resumen = document.getElementById('monto-pagado-fijado');
+    const resumenValor = document.getElementById('monto-pagado-fijado-valor');
+    if (resumen && resumenValor) {
+        resumenValor.textContent = valor;
+        resumen.classList.remove('d-none');
+    }
+}
+
 // "Paga el total": llena el monto con el total (el input-group se re-renderiza
 // con cada refresco del carrito, así que se delega en document). El campo no
 // deja cargar más que el total (el vuelto se maneja en efectivo).
 document.addEventListener('click', (e) => {
     if (e.target.id !== 'btn-paga-total') return;
     const inp = document.getElementById('input-monto-pagado');
-    if (inp) inp.value = inp.dataset.total || 0;
+    if (inp) fijarMontoPagado(inp.dataset.total || 0);
 });
 
 // Botones 10%/25%/50%: completan el monto con esa fracción del total.
@@ -624,8 +648,17 @@ document.addEventListener('click', (e) => {
     if (!inp) return;
     const total = Number(inp.dataset.total || 0);
     const porcentaje = Number(e.target.dataset.porcentaje);
-    inp.value = (total * porcentaje / 100).toFixed(2);
+    fijarMontoPagado((total * porcentaje / 100).toFixed(2));
 });
+
+// "Cambiar monto": vuelve a habilitar el input para tipear un monto distinto.
+document.addEventListener('click', (e) => {
+    if (e.target.id !== 'btn-cambiar-monto-pagado') return;
+    const inp = document.getElementById('input-monto-pagado');
+    if (inp) inp.disabled = false;
+    document.getElementById('monto-pagado-fijado')?.classList.add('d-none');
+});
+
 document.addEventListener('input', (e) => {
     if (e.target.id !== 'input-monto-pagado') return;
     const total = Number(e.target.dataset.total || 0);

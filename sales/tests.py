@@ -682,11 +682,11 @@ class SaldoYSenaTests(TestCase):
         )
         self.vendedor = Vendedor.objects.create(nombre="Vendedora Test")
 
-    def _venta_confirmable(self, cantidad=1):
+    def _venta_confirmable(self, cantidad=1, entregado=True):
         venta = Venta.objects.create(vendedor=self.vendedor, forma_pago=Venta.FormaPago.EFECTIVO)
         VentaItem.objects.create(
             venta=venta, producto=self.producto, cantidad=cantidad,
-            precio_unitario=self.producto.precio,
+            precio_unitario=self.producto.precio, entregado=entregado,
         )
         return venta
 
@@ -697,14 +697,21 @@ class SaldoYSenaTests(TestCase):
         self.assertEqual(venta.monto_pagado, 10000)
         self.assertEqual(venta.saldo_pendiente, 0)
 
+    def test_no_se_puede_dejar_saldo_si_se_entrega_todo(self):
+        venta = self._venta_confirmable(entregado=True)
+        with self.assertRaises(ValidationError):
+            venta.confirmar(monto_pagado=Decimal("3000"))
+        venta.refresh_from_db()
+        self.assertEqual(venta.estado, Venta.Estado.ABIERTA)
+
     def test_confirmar_con_sena_deja_saldo_pendiente(self):
-        venta = self._venta_confirmable()
+        venta = self._venta_confirmable(entregado=False)
         venta.confirmar(monto_pagado=Decimal("3000"))
         self.assertEqual(venta.monto_pagado, 3000)
         self.assertEqual(venta.saldo_pendiente, 7000)
 
     def test_registrar_pago_del_saldo_lo_cancela(self):
-        venta = self._venta_confirmable()
+        venta = self._venta_confirmable(entregado=False)
         venta.confirmar(monto_pagado=Decimal("3000"))
         venta.registrar_pago_y_entrega(
             monto_adicional=Decimal("7000"),
@@ -1058,6 +1065,9 @@ class VentaObraSocialTests(TestCase):
         self.client.post(f"/ventas/{venta_id}/escanear/", {"codigo": self.producto.codigo_barras})
         self.client.post(f"/ventas/{venta_id}/obra-social/", {"es_obra_social": "1"})
         self.client.post(f"/ventas/{venta_id}/obra-social/tipo/", {"obra_social_tipo": "PAR"})
+        # No paga nada: no se puede entregar el anteojo todavía (queda a retirar).
+        item = Venta.objects.get(id=venta_id).items.get()
+        self.client.post(f"/ventas/{venta_id}/items/{item.id}/entregado/", {"entregado": "0"})
         self.client.post(f"/ventas/{venta_id}/confirmar/", {"monto_pagado": "0"})
         venta = Venta.objects.get(id=venta_id)
         self.assertEqual(venta.estado, Venta.Estado.CONFIRMADA)
@@ -1082,6 +1092,9 @@ class VentaObraSocialTests(TestCase):
         self.client.post(f"/ventas/{venta_id}/obra-social/", {"es_obra_social": "1"})
         self.client.post(f"/ventas/{venta_id}/obra-social/tipo/", {"obra_social_tipo": "PAR"})
         self.client.post(f"/ventas/{venta_id}/forma-pago/", {"forma_pago": "EFE"})
+        # Deja saldo: el anteojo todavía no se entrega (queda a retirar).
+        item = Venta.objects.get(id=venta_id).items.get()
+        self.client.post(f"/ventas/{venta_id}/items/{item.id}/entregado/", {"entregado": "0"})
         self.client.post(f"/ventas/{venta_id}/confirmar/", {"monto_pagado": "3000"})
         venta = Venta.objects.get(id=venta_id)
         self.assertEqual(venta.estado, Venta.Estado.CONFIRMADA)

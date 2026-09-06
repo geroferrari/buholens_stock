@@ -191,7 +191,7 @@ class PapeleraSoftDeleteTests(TestCase):
 
 class ConfiguracionTests(TestCase):
     """La configuración de la óptica es lo que reemplaza a los datos que antes
-    estaban escritos en el código (nombre, contacto, logo, color)."""
+    estaban escritos en el código (nombre, contacto, color)."""
 
     def setUp(self):
         self.cliente = Client()

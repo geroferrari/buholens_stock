@@ -54,7 +54,6 @@
     <!-- ===== Copia para el laboratorio ===== -->
     <div class="columna">
         <div class="encabezado">
-            {% if optica.logo %}<img src="{{ optica.logo.url }}" alt="{{ optica.nombre }}">{% endif %}
             <div class="datos-optica">
                 <strong>{{ optica.nombre }}</strong><br>
                 {{ optica.datos_contacto|join:" · " }}
@@ -102,7 +101,6 @@
     <!-- ===== Copia para el cliente ===== -->
     <div class="columna">
         <div class="encabezado">
-            {% if optica.logo %}<img src="{{ optica.logo.url }}" alt="{{ optica.nombre }}">{% endif %}
             <div class="datos-optica">
                 <strong>{{ optica.nombre }}</strong><br>
                 {{ optica.datos_contacto|join:" · " }}

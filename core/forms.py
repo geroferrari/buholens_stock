@@ -14,7 +14,7 @@ class ConfiguracionForm(BootstrapModelForm):
         model = Configuracion
         fields = [
             "nombre", "nombre_corto", "direccion", "telefono", "email",
-            "logo", "color_primario", "mensaje_ticket",
+            "color_primario", "mensaje_ticket",
             "caracteristica_telefonica", "largo_telefono_local",
             "codigo_pais", "prefijo_movil",
         ]
@@ -24,7 +24,7 @@ class ConfiguracionForm(BootstrapModelForm):
         }
 
     # La pantalla se muestra en dos bloques: identidad de la óptica y reglas de
-    # teléfonos (que son de otra naturaleza y confunden mezcladas con el logo).
+    # teléfonos (que son de otra naturaleza y confunden mezcladas juntas).
     CAMPOS_TELEFONO = (
         "caracteristica_telefonica", "largo_telefono_local", "codigo_pais", "prefijo_movil",
     )

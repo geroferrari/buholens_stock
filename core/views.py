@@ -105,7 +105,7 @@ def eliminar_definitivo(request, tipo, pk):
 
 @login_required
 def configuracion(request):
-    """Datos de la óptica: nombre, contacto, logo y color de marca. Es lo que
+    """Datos de la óptica: nombre, contacto y color de marca. Es lo que
     hace que la app sirva para cualquier óptica sin tocar código. Solo admin."""
     redir = _solo_admin(request, "La configuración")
     if redir:

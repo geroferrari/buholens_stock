@@ -18,7 +18,7 @@ def _oscurecer(hex_color, factor):
 
 class Configuracion(models.Model):
     """
-    Datos de la óptica que usa la app: nombre, contacto, logo y color de marca.
+    Datos de la óptica que usa la app: nombre, contacto y color de marca.
     Es una fila única (singleton): `save()` fuerza siempre pk=1 y se lee con
     `Configuracion.actual()`. Se edita desde Gestión → Configuración, así la
     misma aplicación sirve para cualquier óptica sin tocar código.
@@ -39,10 +39,6 @@ class Configuracion(models.Model):
     direccion = models.CharField("Dirección", max_length=200, blank=True)
     telefono = models.CharField("Teléfono", max_length=60, blank=True)
     email = models.EmailField("Email de contacto", blank=True)
-    logo = models.ImageField(
-        "Logo", upload_to="marca/", blank=True,
-        help_text="Se muestra en la barra superior y en las impresiones. Ideal cuadrado, fondo transparente.",
-    )
     color_primario = models.CharField(
         "Color principal", max_length=7, default=COLOR_POR_DEFECTO,
         help_text="Color de marca en formato #rrggbb. Se usa en botones, links y destacados.",

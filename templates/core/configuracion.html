@@ -8,7 +8,7 @@
     las órdenes de laboratorio y los avisos al celular.
 </p>
 
-<form method="post" enctype="multipart/form-data" novalidate>
+<form method="post" novalidate>
     {% csrf_token %}
     {% if form.non_field_errors %}
     <div class="alert alert-danger">{{ form.non_field_errors }}</div>
@@ -42,15 +42,9 @@
     </div>
 </form>
 
-<div class="alert alert-secondary mt-3 small mb-0">
-    El ícono de la app en el celular (pantalla de inicio / notificaciones) se toma
-    del logo si hay uno cargado. Si lo cambiás, puede tardar en actualizarse hasta
-    que se vuelva a agregar la app a la pantalla de inicio.
-</div>
-
 <script>
 window.tourSteps = [
-    { element: '#tour-identidad', popover: { title: 'Identidad', description: 'Nombre, logo, color de marca, dirección y mail: se reflejan en la barra superior, el ticket y las órdenes de laboratorio.' } },
+    { element: '#tour-identidad', popover: { title: 'Identidad', description: 'Nombre, color de marca, dirección y mail: se reflejan en la barra superior, el ticket y las órdenes de laboratorio.' } },
     { element: '#tour-telefonos', popover: { title: 'Teléfonos de clientes', description: 'Característica de zona y código de país para armar bien los links de WhatsApp.' } },
     { element: '#tour-guardar-config', popover: { title: 'Guardar', description: 'Aplica los cambios de una.' } },
 ];

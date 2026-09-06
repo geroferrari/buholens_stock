@@ -278,6 +278,15 @@ class Venta(SoftDeleteModel):
         # si el cliente da de más, el vuelto se maneja en efectivo, no queda en el
         # sistema. También se descartan negativos.
         self.monto_pagado = max(min(self.monto_pagado, self.total), 0)
+        # Si se entrega todo ahora no puede quedar saldo: dejar debiendo algo
+        # sin retener ninguna mercadería como referencia no tiene forma de
+        # hacerse cumplir después. Para dejar una seña hay que destildar la
+        # entrega de al menos un ítem (reserva/encargo).
+        if self.entregado and self.monto_pagado < self.total:
+            raise ValidationError(
+                "Si se entrega todo ahora hay que cobrar el total. Para dejar una seña, "
+                "destildá la entrega de lo que no se lleva todavía."
+            )
         # En una venta por obra social el cliente puede abonar una parte ahora
         # (una seña / lo que le corresponde pagar): si abona algo, necesitamos
         # saber con qué forma de pago lo hizo.
